@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'pages/landing_page.dart';
+
+import 'pages/welcome.dart';
 
 void main() {
   runApp(const TenderTrustApp());
@@ -21,7 +22,7 @@ class TenderTrustApp extends StatelessWidget {
         ),
         fontFamily: 'Roboto',
       ),
-      home: const TenderTrustLandingPage(),
+      home: const WelcomePage(),
     );
   }
 }
