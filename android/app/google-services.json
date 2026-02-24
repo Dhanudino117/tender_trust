@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "769428111995",
+    "project_id": "tendertrust-trustforge",
+    "storage_bucket": "tendertrust-trustforge.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:769428111995:android:08287e728cca8f646b98de",
+        "android_client_info": {
+          "package_name": "com.example.tender_trust"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCNmpZIgZVAbss3ndPPXLOLu7ksi3jWpyw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
