@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 
+import 'firebase_options.dart';
 import 'pages/welcome.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint("Firebase initialization error: $e");
+  }
+
   runApp(const TenderTrustApp());
 }
 
@@ -28,7 +40,7 @@ class TenderTrustApp extends StatelessWidget {
           error: Color(0xFFB00020),
           onError: Color(0xFFFFFFFF),
         ),
-        scaffoldBackgroundColor: const Color(0xFFFFF8E7),
+        scaffoldBackgroundColor: Color(0xFFFFF8E7),
       ),
       home: const WelcomePage(),
     );
