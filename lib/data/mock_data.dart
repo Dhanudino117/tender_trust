@@ -1,0 +1,223 @@
+import '../models/caregiver_model.dart';
+import '../models/booking_model.dart';
+import '../models/review_model.dart';
+
+// ─── Sample Caregivers ─────────────────────────────────────────────────
+final List<CaregiverModel> mockCaregivers = [
+  const CaregiverModel(
+    id: 'cg1',
+    name: 'Ananya Sharma',
+    email: 'ananya@example.com',
+    bio:
+        'Passionate childcare professional with a background in early childhood education. I create fun, safe, and nurturing environments where children thrive.',
+    location: 'Koramangala, Bangalore',
+    experienceYears: 5,
+    hourlyRate: 350,
+    rating: 4.9,
+    totalReviews: 28,
+    isVerified: true,
+    specialties: ['Infant Care', 'First Aid Certified', 'Montessori'],
+    availability: 'Available',
+  ),
+  const CaregiverModel(
+    id: 'cg2',
+    name: 'Priya Nair',
+    email: 'priya@example.com',
+    bio:
+        'Former preschool teacher turned full-time nanny. Specializing in toddlers and creative play-based learning activities.',
+    location: 'Indiranagar, Bangalore',
+    experienceYears: 3,
+    hourlyRate: 300,
+    rating: 4.7,
+    totalReviews: 15,
+    isVerified: true,
+    specialties: ['Toddler Care', 'Creative Arts', 'Meal Prep'],
+    availability: 'Available',
+  ),
+  const CaregiverModel(
+    id: 'cg3',
+    name: 'Meera Patel',
+    email: 'meera@example.com',
+    bio:
+        'Experienced caregiver and certified pediatric nurse. I bring medical expertise and warmth to every session.',
+    location: 'HSR Layout, Bangalore',
+    experienceYears: 8,
+    hourlyRate: 500,
+    rating: 5.0,
+    totalReviews: 42,
+    isVerified: true,
+    specialties: ['Medical Care', 'Special Needs', 'CPR Certified'],
+    availability: 'Busy',
+  ),
+  const CaregiverModel(
+    id: 'cg4',
+    name: 'Kavitha Reddy',
+    email: 'kavitha@example.com',
+    bio:
+        'Friendly and energetic babysitter. Great with kids aged 2–10. Love outdoor activities and helping with homework.',
+    location: 'Whitefield, Bangalore',
+    experienceYears: 2,
+    hourlyRate: 250,
+    rating: 4.5,
+    totalReviews: 9,
+    isVerified: false,
+    specialties: ['Homework Help', 'Outdoor Play', 'Cooking'],
+    availability: 'Available',
+  ),
+  const CaregiverModel(
+    id: 'cg5',
+    name: 'Sunita Verma',
+    email: 'sunita@example.com',
+    bio:
+        'Dedicated nanny with a calm and patient approach. Experienced with newborns and sleep training routines.',
+    location: 'JP Nagar, Bangalore',
+    experienceYears: 6,
+    hourlyRate: 400,
+    rating: 4.8,
+    totalReviews: 31,
+    isVerified: true,
+    specialties: ['Newborn Care', 'Sleep Training', 'Night Care'],
+    availability: 'Available',
+  ),
+  const CaregiverModel(
+    id: 'cg6',
+    name: 'Lakshmi Iyer',
+    email: 'lakshmi@example.com',
+    bio:
+        'Retired school principal with 20+ years of experience working with children. Providing premium, trustworthy care.',
+    location: 'Jayanagar, Bangalore',
+    experienceYears: 20,
+    hourlyRate: 600,
+    rating: 4.9,
+    totalReviews: 56,
+    isVerified: true,
+    specialties: ['Education', 'Discipline', 'All Ages'],
+    availability: 'Available',
+  ),
+];
+
+// ─── Sample Bookings ───────────────────────────────────────────────────
+final List<BookingModel> mockBookings = [
+  BookingModel(
+    id: 'bk1',
+    parentId: 'p1',
+    parentName: 'Rahul Kumar',
+    caregiverId: 'cg1',
+    caregiverName: 'Ananya Sharma',
+    status: BookingStatus.ongoing,
+    date: DateTime.now(),
+    timeSlot: '9:00 AM – 1:00 PM',
+    totalCost: 1400,
+    sessionUpdates: [
+      SessionUpdate(
+        type: SessionActivityType.sessionStarted,
+        timestamp: DateTime.now().subtract(const Duration(hours: 2)),
+        note: 'Arrived on time. Kids are excited!',
+      ),
+      SessionUpdate(
+        type: SessionActivityType.playTime,
+        timestamp: DateTime.now().subtract(
+          const Duration(hours: 1, minutes: 30),
+        ),
+        note: 'Playing with building blocks and drawing.',
+      ),
+      SessionUpdate(
+        type: SessionActivityType.mealGiven,
+        timestamp: DateTime.now().subtract(const Duration(hours: 1)),
+        note: 'Lunch served — pasta and fruit.',
+      ),
+    ],
+  ),
+  BookingModel(
+    id: 'bk2',
+    parentId: 'p1',
+    parentName: 'Rahul Kumar',
+    caregiverId: 'cg3',
+    caregiverName: 'Meera Patel',
+    status: BookingStatus.completed,
+    date: DateTime.now().subtract(const Duration(days: 2)),
+    timeSlot: '2:00 PM – 6:00 PM',
+    totalCost: 2000,
+  ),
+  BookingModel(
+    id: 'bk3',
+    parentId: 'p1',
+    parentName: 'Rahul Kumar',
+    caregiverId: 'cg5',
+    caregiverName: 'Sunita Verma',
+    status: BookingStatus.pending,
+    date: DateTime.now().add(const Duration(days: 1)),
+    timeSlot: '10:00 AM – 2:00 PM',
+    totalCost: 1600,
+    notes: 'Please bring infant-friendly snacks.',
+  ),
+  BookingModel(
+    id: 'bk4',
+    parentId: 'p2',
+    parentName: 'Divya Menon',
+    caregiverId: 'cg1',
+    caregiverName: 'Ananya Sharma',
+    status: BookingStatus.accepted,
+    date: DateTime.now().add(const Duration(days: 3)),
+    timeSlot: '8:00 AM – 12:00 PM',
+    totalCost: 1400,
+  ),
+];
+
+// ─── Sample Reviews ────────────────────────────────────────────────────
+final List<ReviewModel> mockReviews = [
+  ReviewModel(
+    id: 'rv1',
+    bookingId: 'bk2',
+    parentId: 'p1',
+    parentName: 'Rahul Kumar',
+    caregiverId: 'cg3',
+    rating: 5,
+    comment:
+        'Meera was absolutely wonderful! My kids adored her and she handled everything professionally.',
+    createdAt: DateTime.now().subtract(const Duration(days: 1)),
+  ),
+  ReviewModel(
+    id: 'rv2',
+    bookingId: 'bk_old1',
+    parentId: 'p2',
+    parentName: 'Divya Menon',
+    caregiverId: 'cg1',
+    rating: 5,
+    comment: 'Ananya is the best caregiver we have ever had. Highly recommend!',
+    createdAt: DateTime.now().subtract(const Duration(days: 5)),
+  ),
+  ReviewModel(
+    id: 'rv3',
+    bookingId: 'bk_old2',
+    parentId: 'p3',
+    parentName: 'Sneha Gupta',
+    caregiverId: 'cg1',
+    rating: 4,
+    comment:
+        'Great with kids, very responsible. Only deducting a star because she was 10 min late.',
+    createdAt: DateTime.now().subtract(const Duration(days: 10)),
+  ),
+  ReviewModel(
+    id: 'rv4',
+    bookingId: 'bk_old3',
+    parentId: 'p1',
+    parentName: 'Rahul Kumar',
+    caregiverId: 'cg5',
+    rating: 5,
+    comment:
+        'Sunita is amazing with newborns. So gentle and patient. My baby slept through the night!',
+    createdAt: DateTime.now().subtract(const Duration(days: 7)),
+  ),
+  ReviewModel(
+    id: 'rv5',
+    bookingId: 'bk_old4',
+    parentId: 'p4',
+    parentName: 'Arjun Rao',
+    caregiverId: 'cg2',
+    rating: 4,
+    comment:
+        'Priya was creative and kept the kids engaged all day. Would book again.',
+    createdAt: DateTime.now().subtract(const Duration(days: 14)),
+  ),
+];

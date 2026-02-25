@@ -1,4 +1,9 @@
+// ignore_for_file: unused_field
+
 import 'package:flutter/material.dart';
+import '../auth_state.dart';
+import 'login_page.dart';
+import 'profile_page.dart';
 
 class TenderTrustLandingPage extends StatefulWidget {
   const TenderTrustLandingPage({super.key});
@@ -14,17 +19,17 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
   final ScrollController _scrollController = ScrollController();
   int _currentNavIndex = 0;
 
-  // ─── Neo Brutalism Palette ──────────────────────────────────────────────
-  static const Color primaryColor = Color(0xFFFF6B6B);
-  static const Color secondaryColor = Color(0xFF4ECDC4);
-  static const Color accentYellow = Color(0xFFFFE66D);
-  static const Color accentBlue = Color(0xFF6C63FF);
-  static const Color bgColor = Color(0xFFFFF8E7);
-  static const Color cardColor = Color(0xFFFFFFFF);
-  static const Color surfaceColor = Color(0xFFFFF0D1);
-  static const Color textPrimary = Color(0xFF1A1A2E);
-  static const Color textSecondary = Color(0xFF4A4A5A);
-  static const Color borderColor = Color(0xFF1A1A2E);
+  // ─── Childcare Color Palette ────────────────────────────────────────────
+  static const Color primaryColor = Color(0xFFFF7E67); // Warm Coral
+  static const Color secondaryColor = Color(0xFF56C6A9); // Mint Green
+  static const Color accentYellow = Color(0xFFFFD166); // Sunny Yellow
+  static const Color accentBlue = Color(0xFF7F9CF5); // Gentle Lavender-Blue
+  static const Color bgColor = Color(0xFFFFF9F0); // Warm Cream Background
+  static const Color cardColor = Color(0xFFFFFFFF); // White
+  static const Color surfaceColor = Color(0xFFFFF1DB); // Soft Peach Surface
+  static const Color textPrimary = Color(0xFF2D3047); // Warm Navy
+  static const Color textSecondary = Color(0xFF6B7280); // Soft Grey
+  static const Color borderColor = Color(0xFFE8D5C4); // Warm Tan Border
 
   @override
   void initState() {
@@ -137,32 +142,64 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 12),
-          child: Container(
-            decoration: _brutalistBox(
-              color: primaryColor,
-              radius: 4,
-              borderWidth: 2,
-              shadowX: 2,
-              shadowY: 2,
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {},
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  child: Text(
-                    'Get Started',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 13,
+          child: AuthState().isLoggedIn
+              ? GestureDetector(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ProfilePage()),
+                  ),
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [primaryColor, Color(0xFFFF9A85)],
+                      ),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: borderColor, width: 2),
+                    ),
+                    child: Center(
+                      child: Text(
+                        AuthState().initials,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              : Container(
+                  decoration: _brutalistBox(
+                    color: primaryColor,
+                    radius: 4,
+                    borderWidth: 2,
+                    shadowX: 2,
+                    shadowY: 2,
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const LoginPage()),
+                      ),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        child: Text(
+                          'Login',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-          ),
         ),
       ],
       bottom: PreferredSize(
