@@ -173,3 +173,44 @@ TenderTrust addresses critical childcare concerns by ensuring:
 - Safety through emergency response mechanisms  
 
 The platform modernizes childcare discovery into a secure, reliable, and technology-driven digital experience.
+
+---
+
+## Backend Initialization (Firebase)
+
+Follow these steps to finish initializing the Firebase backend for this Flutter app.
+
+- **Create a Firebase project:** Go to the Firebase console and create a new project for TenderTrust.
+- **Install FlutterFire CLI (locally):**
+
+```bash
+dart pub global activate flutterfire_cli
+```
+
+- **Configure Firebase for this app (generates `firebase_options.dart`):**
+
+```bash
+# from repository root
+flutterfire configure
+```
+
+- **Add platform files:**
+  - Android: download `google-services.json` and place in `android/app/`
+  - iOS: download `GoogleService-Info.plist` and add to Xcode Runner target
+
+- **Fetch packages:**
+
+```bash
+flutter pub get
+```
+
+- **Run the app:**
+
+```bash
+flutter run
+```
+
+Notes:
+- The code now initializes Firebase in `lib/main.dart` and expects a generated [lib/firebase_options.dart](lib/firebase_options.dart#L1) file. If you haven't run `flutterfire configure`, the placeholder will throw an informative error at startup.
+- Update your Android and iOS build files as instructed by the Firebase console if required.
+
