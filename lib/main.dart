@@ -52,7 +52,7 @@ class TenderTrustApp extends StatelessWidget {
           onError: Color(0xFFFFFFFF),
         ),
         scaffoldBackgroundColor: const Color(0xFFFFF9F0),
-        scaffoldBackgroundColor: Color(0xFFFFF8E7),
+
       ),
       home: _homeScreen,
     );
