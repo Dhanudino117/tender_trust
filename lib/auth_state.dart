@@ -1,45 +1,76 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-/// Simple in-memory auth state for TenderTrust.
-/// No backend — just tracks login status and user info.
 class AuthState extends ChangeNotifier {
   static final AuthState _instance = AuthState._();
   factory AuthState() => _instance;
-  AuthState._();
 
-  bool _isLoggedIn = false;
-  String _userName = '';
-  String _userEmail = '';
-  String _userRole = 'Parent'; // 'Parent' or 'Caregiver'
+  AuthState._() {
+    FirebaseAuth.instance.authStateChanges().listen((user) {
+      _firebaseUser = user;
+      notifyListeners();
+    });
+  }
 
-  bool get isLoggedIn => _isLoggedIn;
-  String get userName => _userName;
-  String get userEmail => _userEmail;
+  User? _firebaseUser;
+  String _userRole = 'Parent';
+
+  bool get isLoggedIn => _firebaseUser != null;
+
+  String get userEmail => _firebaseUser?.email ?? '';
+
+  String get userName =>
+      _firebaseUser?.displayName ?? userEmail.split('@').first;
+
   String get userRole => _userRole;
+
   String get initials {
-    if (_userName.isEmpty) return '?';
-    final parts = _userName.trim().split(' ');
-    if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    final name = userName.trim();
+    if (name.isEmpty) return '?';
+
+    final parts = name.split(' ');
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
     return parts[0][0].toUpperCase();
   }
 
-  void login({
+  Future<void> signUp({
     required String name,
     required String email,
+    required String password,
     required String role,
-  }) {
-    _userName = name;
-    _userEmail = email;
-    _userRole = role;
-    _isLoggedIn = true;
-    notifyListeners();
+  }) async {
+    try {
+      final credential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password.trim(),
+      );
+
+      await credential.user?.updateDisplayName(name);
+
+      _userRole = role;
+    } on FirebaseAuthException catch (e) {
+      throw e.message ?? "Signup failed";
+    }
   }
 
-  void logout() {
-    _userName = '';
-    _userEmail = '';
-    _userRole = 'Parent';
-    _isLoggedIn = false;
-    notifyListeners();
+  Future<void> login({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password.trim(),
+      );
+    } on FirebaseAuthException catch (e) {
+      throw e.message ?? "Login failed";
+    }
+  }
+
+  Future<void> logout() async {
+    await FirebaseAuth.instance.signOut();
   }
 }

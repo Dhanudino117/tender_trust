@@ -3,12 +3,9 @@ import '../auth_state.dart';
 import 'parent/parent_home.dart';
 import 'caregiver/caregiver_home.dart';
 
-// ─── Childcare Color Palette ──────────────────────────────────────────────
 const Color _primaryColor = Color(0xFFFF7E67);
-const Color _accentBlue = Color(0xFF7F9CF5);
 const Color _bgColor = Color(0xFFFFF9F0);
 const Color _cardColor = Color(0xFFFFFFFF);
-const Color _surfaceColor = Color(0xFFFFF1DB);
 const Color _textPrimary = Color(0xFF2D3047);
 const Color _textSecondary = Color(0xFF6B7280);
 const Color _borderColor = Color(0xFFE8D5C4);
@@ -30,6 +27,7 @@ class _LoginPageState extends State<LoginPage>
   bool _isSignUp = false;
   bool _obscurePassword = true;
   String _selectedRole = 'Parent';
+  bool _isLoading = false;
 
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
@@ -38,23 +36,17 @@ class _LoginPageState extends State<LoginPage>
   @override
   void initState() {
     super.initState();
-    _animController = AnimationController(
-      duration: const Duration(milliseconds: 900),
-      vsync: this,
+
+    _animController =
+        AnimationController(duration: const Duration(milliseconds: 800), vsync: this);
+
+    _fadeAnim = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeOut),
     );
-    _fadeAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animController,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
-      ),
-    );
+
     _slideAnim = Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero)
-        .animate(
-          CurvedAnimation(
-            parent: _animController,
-            curve: const Interval(0.1, 0.7, curve: Curves.easeOutCubic),
-          ),
-        );
+        .animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
+
     _animController.forward();
   }
 
@@ -67,25 +59,53 @@ class _LoginPageState extends State<LoginPage>
     super.dispose();
   }
 
-  void _handleSubmit() {
+  Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    AuthState().login(
-      name: _isSignUp
-          ? _nameController.text.trim()
-          : _emailController.text.split('@').first,
-      email: _emailController.text.trim(),
-      role: _selectedRole,
-    );
+    setState(() => _isLoading = true);
 
-    final destination = _selectedRole == 'Caregiver'
-        ? const CaregiverHome()
-        : const ParentHome();
+    try {
+      if (_isSignUp) {
+        await AuthState().signUp(
+          name: _nameController.text.trim(),
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+          role: _selectedRole,
+        );
+      } else {
+        await AuthState().login(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
+      }
 
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => destination),
-      (route) => false,
-    );
+      final destination = _selectedRole == 'Caregiver'
+          ? const CaregiverHome()
+          : const ParentHome();
+
+      if (!mounted) return;
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => destination),
+        (route) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.red,
+          content: Text(
+            e.toString(),
+            style: const TextStyle(color: Colors.white),
+          ),
+        ),
+      );
+    }
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   void _continueAsGuest() {
@@ -102,61 +122,37 @@ class _LoginPageState extends State<LoginPage>
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            padding: const EdgeInsets.all(24),
             child: SlideTransition(
               position: _slideAnim,
               child: FadeTransition(
                 opacity: _fadeAnim,
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 440),
+                  constraints: const BoxConstraints(maxWidth: 420),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      // ── Logo ──
-                      _buildLogo(),
-                      const SizedBox(height: 28),
-
-                      // ── Title ──
+                      const SizedBox(height: 30),
+                      const Icon(Icons.child_care_rounded,
+                          size: 60, color: _primaryColor),
+                      const SizedBox(height: 20),
                       Text(
-                        _isSignUp ? 'Create Account' : 'Welcome Back',
+                        _isSignUp ? "Create Account" : "Welcome Back",
                         style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
                           color: _textPrimary,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w900,
-                          height: 1.1,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _isSignUp
-                            ? 'Join our trusted childcare community'
-                            : 'Log in to access your profile',
-                        style: const TextStyle(
-                          color: _textSecondary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 28),
-
-                      // ── Form Card ──
+                      const SizedBox(height: 25),
                       _buildFormCard(),
                       const SizedBox(height: 20),
-
-                      // ── Toggle Login/SignUp ──
                       _buildToggle(),
-                      const SizedBox(height: 16),
-
-                      // ── Continue as Guest ──
+                      const SizedBox(height: 15),
                       TextButton(
                         onPressed: _continueAsGuest,
                         child: const Text(
-                          'Continue as Guest →',
-                          style: TextStyle(
-                            color: _textSecondary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          "Continue as Guest →",
+                          style: TextStyle(color: _textSecondary),
                         ),
                       ),
                     ],
@@ -170,148 +166,102 @@ class _LoginPageState extends State<LoginPage>
     );
   }
 
-  Widget _buildLogo() {
-    return Container(
-      width: 80,
-      height: 80,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [_primaryColor, Color(0xFFFF9A85)],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: _primaryColor.withValues(alpha: 0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: const Icon(
-        Icons.child_care_rounded,
-        color: Colors.white,
-        size: 42,
-      ),
-    );
-  }
-
   Widget _buildFormCard() {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: _cardColor,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: _borderColor.withValues(alpha: 0.25),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
+            color: _borderColor.withValues(alpha: 0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          )
         ],
       ),
       child: Form(
         key: _formKey,
         child: Column(
           children: [
-            // Name field (sign up only)
-            AnimatedSize(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              child: _isSignUp
-                  ? Column(
-                      children: [
-                        _buildTextField(
-                          controller: _nameController,
-                          hint: 'Full Name',
-                          icon: Icons.person_outline_rounded,
-                          validator: (v) => v == null || v.trim().isEmpty
-                              ? 'Enter your name'
-                              : null,
-                        ),
-                        const SizedBox(height: 14),
-                      ],
-                    )
-                  : const SizedBox.shrink(),
-            ),
-
-            // Email
+            if (_isSignUp) ...[
+              _buildTextField(
+                controller: _nameController,
+                hint: "Full Name",
+                icon: Icons.person_outline,
+                validator: (v) =>
+                    v == null || v.isEmpty ? "Enter your name" : null,
+              ),
+              const SizedBox(height: 12),
+            ],
             _buildTextField(
               controller: _emailController,
-              hint: 'Email Address',
+              hint: "Email Address",
               icon: Icons.email_outlined,
               keyboardType: TextInputType.emailAddress,
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Enter your email';
-                if (!v.contains('@')) return 'Enter a valid email';
+                if (v == null || v.isEmpty) return "Enter email";
+                if (!v.contains("@")) return "Invalid email";
                 return null;
               },
             ),
-            const SizedBox(height: 14),
-
-            // Password
+            const SizedBox(height: 12),
             _buildTextField(
               controller: _passwordController,
-              hint: 'Password',
-              icon: Icons.lock_outline_rounded,
+              hint: "Password",
+              icon: Icons.lock_outline,
               obscure: _obscurePassword,
               suffixIcon: IconButton(
                 icon: Icon(
                   _obscurePassword
-                      ? Icons.visibility_off_rounded
-                      : Icons.visibility_rounded,
-                  color: _textSecondary,
-                  size: 20,
+                      ? Icons.visibility_off
+                      : Icons.visibility,
                 ),
                 onPressed: () =>
                     setState(() => _obscurePassword = !_obscurePassword),
               ),
               validator: (v) {
-                if (v == null || v.isEmpty) return 'Enter your password';
-                if (v.length < 6) return 'Password must be 6+ characters';
+                if (v == null || v.isEmpty) return "Enter password";
+                if (v.length < 6) return "Minimum 6 characters";
                 return null;
               },
             ),
-
-            // Role selector (sign up only)
-            AnimatedSize(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              child: _isSignUp
-                  ? Column(
-                      children: [
-                        const SizedBox(height: 18),
-                        _buildRoleSelector(),
-                      ],
-                    )
-                  : const SizedBox.shrink(),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Submit button
+            if (_isSignUp) ...[
+              const SizedBox(height: 15),
+              DropdownButtonFormField<String>(
+                initialValue: _selectedRole,
+                items: const [
+                  DropdownMenuItem(value: "Parent", child: Text("Parent")),
+                  DropdownMenuItem(value: "Caregiver", child: Text("Caregiver")),
+                ],
+                onChanged: (v) => setState(() => _selectedRole = v!),
+                decoration: const InputDecoration(
+                  labelText: "Select Role",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+            const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
-              height: 52,
+              height: 50,
               child: ElevatedButton(
-                onPressed: _handleSubmit,
+                onPressed: _isLoading ? null : _handleSubmit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _primaryColor,
                   foregroundColor: Colors.white,
-                  elevation: 4,
-                  shadowColor: _primaryColor.withValues(alpha: 0.3),
+                  elevation: 3,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                ),
-                child: Text(
-                  _isSignUp ? 'Create Account' : 'Log In',
-                  style: const TextStyle(
+                  textStyle: const TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : Text(_isSignUp ? "Create Account" : "Log In"),
               ),
             ),
           ],
@@ -334,103 +284,17 @@ class _LoginPageState extends State<LoginPage>
       keyboardType: keyboardType,
       obscureText: obscure,
       validator: validator,
-      style: const TextStyle(
-        color: _textPrimary,
-        fontSize: 15,
-        fontWeight: FontWeight.w500,
-      ),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(
-          color: _textSecondary.withValues(alpha: 0.6),
-          fontWeight: FontWeight.w500,
-        ),
-        prefixIcon: Icon(icon, color: _accentBlue, size: 20),
+        prefixIcon: Icon(icon, color: _primaryColor),
         suffixIcon: suffixIcon,
-        filled: true,
-        fillColor: _surfaceColor.withValues(alpha: 0.5),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: _borderColor, width: 1.5),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: _borderColor, width: 1.5),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _borderColor),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: _primaryColor, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFFE53935), width: 1.5),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRoleSelector() {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: _surfaceColor.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _borderColor, width: 1.5),
-      ),
-      child: Row(
-        children: [
-          _buildRoleChip('Parent', Icons.family_restroom_rounded),
-          const SizedBox(width: 4),
-          _buildRoleChip('Caregiver', Icons.volunteer_activism_rounded),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRoleChip(String role, IconData icon) {
-    final isSelected = _selectedRole == role;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _selectedRole = role),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isSelected ? _primaryColor : Colors.transparent,
-            borderRadius: BorderRadius.circular(11),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: _primaryColor.withValues(alpha: 0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: isSelected ? Colors.white : _textSecondary,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                role,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : _textSecondary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -441,17 +305,18 @@ class _LoginPageState extends State<LoginPage>
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          _isSignUp ? 'Already have an account? ' : "Don't have an account? ",
-          style: const TextStyle(color: _textSecondary, fontSize: 14),
+          _isSignUp
+              ? "Already have an account? "
+              : "Don't have an account? ",
+          style: const TextStyle(color: _textSecondary),
         ),
         GestureDetector(
           onTap: () => setState(() => _isSignUp = !_isSignUp),
           child: Text(
-            _isSignUp ? 'Log In' : 'Sign Up',
+            _isSignUp ? "Log In" : "Sign Up",
             style: const TextStyle(
               color: _primaryColor,
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.bold,
             ),
           ),
         ),
