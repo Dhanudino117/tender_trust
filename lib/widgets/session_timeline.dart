@@ -7,7 +7,7 @@ const Color _secondaryColor = Color(0xFF56C6A9);
 const Color _accentYellow = Color(0xFFFFD166);
 const Color _accentBlue = Color(0xFF7F9CF5);
 const Color _cardColor = Color(0xFFFFFFFF);
-const Color _textPrimary = Color(0xFF2D3047);
+// const Color _textPrimary = Color(0xFF2D3047);
 const Color _textSecondary = Color(0xFF6B7280);
 const Color _borderColor = Color(0xFFE8D5C4);
 const Color _sosRed = Color(0xFFE53935);
@@ -292,7 +292,7 @@ class _TimelineItem extends StatelessWidget {
                       height: 150,
                       width: double.infinity,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                      errorBuilder: (_, _, _) => Container(
                         height: 80,
                         decoration: BoxDecoration(
                           color: _textSecondary.withValues(alpha: 0.1),

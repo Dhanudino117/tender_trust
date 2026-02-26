@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../auth_state.dart';
 import 'welcome.dart';
 import 'login_page.dart';
+import '../utils/web_picker_stub.dart' if (dart.library.html) '../utils/web_picker.dart' as web_picker;
 
 // ─── Childcare Color Palette ──────────────────────────────────────────────
 const Color _primaryColor = Color(0xFFFF7E67);
@@ -85,7 +86,7 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   /// Upload image to Firebase Storage and save URL to Firestore
-  Future<void> _uploadProfileImage(File imageFile) async {
+  Future<void> _uploadProfileImage(XFile imageFile) async {
     final auth = AuthState();
     if (!auth.isLoggedIn) return;
 
@@ -98,7 +99,15 @@ class _ProfilePageState extends State<ProfilePage>
           .child('profile_photos')
           .child('${auth.userId}.jpg');
 
-      await ref.putFile(imageFile, SettableMetadata(contentType: 'image/jpeg'));
+      // Read bytes from XFile (works on web and mobile) and upload with putData
+      final bytes = await imageFile.readAsBytes();
+      // Try to infer mime type from name
+      final name = imageFile.name.toLowerCase();
+      String contentType = 'image/jpeg';
+      if (name.endsWith('.png')) contentType = 'image/png';
+      if (name.endsWith('.gif')) contentType = 'image/gif';
+
+      await ref.putData(bytes, SettableMetadata(contentType: contentType));
 
       final downloadUrl = await ref.getDownloadURL();
 
@@ -293,19 +302,26 @@ class _ProfilePageState extends State<ProfilePage>
       return;
     }
 
-    final source = result == 'camera'
-        ? ImageSource.camera
-        : ImageSource.gallery;
-
     try {
-      final XFile? picked = await _picker.pickImage(
-        source: source,
-        maxWidth: 512,
-        maxHeight: 512,
-        imageQuality: 85,
-      );
+      XFile? picked;
+
+      if (kIsWeb && result == 'camera') {
+        // On web, try the HTML capture input which provides a camera prompt
+        picked = await web_picker.pickImageFromWebCamera();
+      }
+
+      if (picked == null) {
+        final source = result == 'camera' ? ImageSource.camera : ImageSource.gallery;
+        picked = await _picker.pickImage(
+          source: source,
+          maxWidth: 512,
+          maxHeight: 512,
+          imageQuality: 85,
+        );
+      }
+
       if (picked != null) {
-        await _uploadProfileImage(File(picked.path));
+        await _uploadProfileImage(picked);
       }
     } catch (e) {
       if (mounted) {
