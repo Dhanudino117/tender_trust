@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'auth_state.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import 'firebase_options.dart';
-import 'pages/welcome.dart';
+import 'pages/landing_page.dart';
 import 'pages/parent/parent_home.dart';
 import 'pages/caregiver/caregiver_home.dart';
 
@@ -18,7 +19,7 @@ Future<void> main() async {
     debugPrint("Firebase initialization error: $e");
   }
 
-  runApp(const TenderTrustApp());
+  runApp(const ProviderScope(child: TenderTrustApp()));
 }
 
 class TenderTrustApp extends StatelessWidget {
@@ -26,7 +27,7 @@ class TenderTrustApp extends StatelessWidget {
 
   Widget get _homeScreen {
     final auth = AuthState();
-    if (!auth.isLoggedIn) return const WelcomePage();
+    if (!auth.isLoggedIn) return const TenderTrustLandingPage();
     return auth.userRole == 'Caregiver'
         ? const CaregiverHome()
         : const ParentHome();
@@ -52,7 +53,6 @@ class TenderTrustApp extends StatelessWidget {
           onError: Color(0xFFFFFFFF),
         ),
         scaffoldBackgroundColor: const Color(0xFFFFF9F0),
-
       ),
       home: _homeScreen,
     );

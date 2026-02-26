@@ -83,7 +83,16 @@ class _ParentHomeState extends State<ParentHome> {
   Widget _navItem(int index, IconData icon, String label) {
     final isActive = _currentIndex == index;
     return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
+      onTap: () {
+        // Guard: Profile tab requires authentication
+        if (index == 2 && !AuthState().isLoggedIn) {
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const LoginPage()));
+          return;
+        }
+        setState(() => _currentIndex = index);
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

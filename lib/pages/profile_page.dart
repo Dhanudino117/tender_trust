@@ -1,6 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../auth_state.dart';
 import 'welcome.dart';
+import 'login_page.dart';
 
 // ─── Childcare Color Palette ──────────────────────────────────────────────
 const Color _primaryColor = Color(0xFFFF7E67);
@@ -26,6 +31,11 @@ class _ProfilePageState extends State<ProfilePage>
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
 
+  // Profile photo state
+  String? _profileImageUrl;
+  bool _isUploading = false;
+  final ImagePicker _picker = ImagePicker();
+
   @override
   void initState() {
     super.initState();
@@ -47,12 +57,118 @@ class _ProfilePageState extends State<ProfilePage>
           ),
         );
     _animController.forward();
+    _loadProfileImage();
   }
 
   @override
   void dispose() {
     _animController.dispose();
     super.dispose();
+  }
+
+  /// Load existing profile photo URL from Firestore
+  Future<void> _loadProfileImage() async {
+    final auth = AuthState();
+    if (!auth.isLoggedIn) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(auth.userId)
+          .get();
+      final data = doc.data();
+      if (data != null && data['photoUrl'] != null && mounted) {
+        setState(() => _profileImageUrl = data['photoUrl'] as String);
+      }
+    } catch (_) {
+      // Silently fail — will show initials
+    }
+  }
+
+  /// Upload image to Firebase Storage and save URL to Firestore
+  Future<void> _uploadProfileImage(File imageFile) async {
+    final auth = AuthState();
+    if (!auth.isLoggedIn) return;
+
+    setState(() => _isUploading = true);
+
+    try {
+      // Upload to Firebase Storage
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('profile_photos')
+          .child('${auth.userId}.jpg');
+
+      await ref.putFile(imageFile, SettableMetadata(contentType: 'image/jpeg'));
+
+      final downloadUrl = await ref.getDownloadURL();
+
+      // Save photo URL in Firestore user document
+      await FirebaseFirestore.instance.collection('users').doc(auth.userId).set(
+        {'photoUrl': downloadUrl, 'updatedAt': FieldValue.serverTimestamp()},
+        SetOptions(merge: true),
+      );
+
+      if (mounted) {
+        setState(() {
+          _profileImageUrl = downloadUrl;
+          _isUploading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile photo updated!'),
+            backgroundColor: _secondaryColor,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isUploading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload photo: $e'),
+            backgroundColor: const Color(0xFFE53935),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Remove profile photo from Firebase Storage and Firestore
+  Future<void> _removeProfileImage() async {
+    final auth = AuthState();
+    if (!auth.isLoggedIn) return;
+
+    setState(() => _isUploading = true);
+
+    try {
+      // Delete from Firebase Storage
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('profile_photos')
+          .child('${auth.userId}.jpg');
+      try {
+        await ref.delete();
+      } catch (_) {
+        // File may not exist, that's fine
+      }
+
+      // Remove URL from Firestore
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(auth.userId)
+          .update({'photoUrl': FieldValue.delete()});
+
+      if (mounted) {
+        setState(() {
+          _profileImageUrl = null;
+          _isUploading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isUploading = false);
+      }
+    }
   }
 
   void _handleLogout() {
@@ -63,9 +179,167 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
+  Future<void> _pickProfileImage() async {
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: _cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: _borderColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Change Profile Photo',
+                style: TextStyle(
+                  color: _textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: _primaryColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.camera_alt_rounded,
+                    color: _primaryColor,
+                  ),
+                ),
+                title: const Text(
+                  'Take Photo',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: _textPrimary,
+                  ),
+                ),
+                onTap: () => Navigator.pop(ctx, 'camera'),
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                leading: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: _accentBlue.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.photo_library_rounded,
+                    color: _accentBlue,
+                  ),
+                ),
+                title: const Text(
+                  'Choose from Gallery',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: _textPrimary,
+                  ),
+                ),
+                onTap: () => Navigator.pop(ctx, 'gallery'),
+              ),
+              if (_profileImageUrl != null) ...[
+                const SizedBox(height: 8),
+                ListTile(
+                  leading: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE53935).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.delete_rounded,
+                      color: Color(0xFFE53935),
+                    ),
+                  ),
+                  title: const Text(
+                    'Remove Photo',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFE53935),
+                    ),
+                  ),
+                  onTap: () => Navigator.pop(ctx, 'remove'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (result == null) return;
+
+    if (result == 'remove') {
+      await _removeProfileImage();
+      return;
+    }
+
+    final source = result == 'camera'
+        ? ImageSource.camera
+        : ImageSource.gallery;
+
+    try {
+      final XFile? picked = await _picker.pickImage(
+        source: source,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 85,
+      );
+      if (picked != null) {
+        await _uploadProfileImage(File(picked.path));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not pick image: $e'),
+            backgroundColor: const Color(0xFFE53935),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = AuthState();
+
+    // ── Auth Guard: redirect to login if not authenticated ──
+    if (!auth.isLoggedIn) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const LoginPage()),
+          );
+        }
+      });
+      return const Scaffold(
+        backgroundColor: _bgColor,
+        body: Center(child: CircularProgressIndicator(color: _primaryColor)),
+      );
+    }
+
+    // Detect whether we can pop (i.e., page was pushed as a route)
+    final canGoBack = Navigator.of(context).canPop();
 
     return Scaffold(
       backgroundColor: _bgColor,
@@ -73,10 +347,13 @@ class _ProfilePageState extends State<ProfilePage>
         backgroundColor: _bgColor,
         surfaceTintColor: _bgColor,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: _textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        leading: canGoBack
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_rounded, color: _textPrimary),
+                onPressed: () => Navigator.of(context).pop(),
+              )
+            : null,
+        automaticallyImplyLeading: false,
         title: const Text(
           'My Profile',
           style: TextStyle(
@@ -127,32 +404,34 @@ class _ProfilePageState extends State<ProfilePage>
                   const SizedBox(height: 28),
 
                   // ── Logout Button ──
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: OutlinedButton.icon(
-                      onPressed: _handleLogout,
-                      icon: const Icon(Icons.logout_rounded, size: 20),
-                      label: const Text(
-                        'Log Out',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
+                  if (auth.isLoggedIn) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: OutlinedButton.icon(
+                        onPressed: _handleLogout,
+                        icon: const Icon(Icons.logout_rounded, size: 20),
+                        label: const Text(
+                          'Log Out',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFE53935),
-                        side: const BorderSide(
-                          color: Color(0xFFE53935),
-                          width: 2,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFE53935),
+                          side: const BorderSide(
+                            color: Color(0xFFE53935),
+                            width: 2,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
+                    const SizedBox(height: 20),
+                  ],
                 ],
               ),
             ),
@@ -165,33 +444,110 @@ class _ProfilePageState extends State<ProfilePage>
   Widget _buildAvatarSection(AuthState auth) {
     return Column(
       children: [
-        Container(
-          width: 100,
-          height: 100,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [_primaryColor, Color(0xFFFF9A85)],
-            ),
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: _primaryColor.withValues(alpha: 0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
+        GestureDetector(
+          onTap: _isUploading ? null : _pickProfileImage,
+          child: Stack(
+            children: [
+              Container(
+                width: 110,
+                height: 110,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [_primaryColor, Color(0xFFFF9A85)],
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: _primaryColor.withValues(alpha: 0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: _isUploading
+                    ? const Center(
+                        child: SizedBox(
+                          width: 36,
+                          height: 36,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 3,
+                          ),
+                        ),
+                      )
+                    : _profileImageUrl != null
+                    ? ClipOval(
+                        child: Image.network(
+                          _profileImageUrl!,
+                          width: 110,
+                          height: 110,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: CircularProgressIndicator(
+                                value:
+                                    loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                          loadingProgress.expectedTotalBytes!
+                                    : null,
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) => Center(
+                            child: Text(
+                              auth.initials,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 36,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          auth.initials,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 36,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+              ),
+              // Camera overlay badge
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: _secondaryColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: _bgColor, width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _secondaryColor.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.camera_alt_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                ),
               ),
             ],
-          ),
-          child: Center(
-            child: Text(
-              auth.initials,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 36,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
           ),
         ),
         const SizedBox(height: 16),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/booking_model.dart';
+import '../../models/session_model.dart';
 
 const Color _primaryColor = Color(0xFFFF7E67);
 const Color _secondaryColor = Color(0xFF56C6A9);
@@ -13,7 +14,15 @@ const Color _borderColor = Color(0xFFE8D5C4);
 
 class ActiveSessionPage extends StatelessWidget {
   final BookingModel booking;
-  const ActiveSessionPage({super.key, required this.booking});
+
+  /// Optional list of activities to display (from mock data or Firestore stream)
+  final List<SessionActivity> activities;
+
+  const ActiveSessionPage({
+    super.key,
+    required this.booking,
+    this.activities = const [],
+  });
 
   IconData _activityIcon(SessionActivityType type) {
     switch (type) {
@@ -25,6 +34,14 @@ class ActiveSessionPage extends StatelessWidget {
         return Icons.bedtime_rounded;
       case SessionActivityType.playTime:
         return Icons.toys_rounded;
+      case SessionActivityType.diaperChange:
+        return Icons.child_care_rounded;
+      case SessionActivityType.medication:
+        return Icons.medical_services_rounded;
+      case SessionActivityType.photo:
+        return Icons.camera_alt_rounded;
+      case SessionActivityType.note:
+        return Icons.note_rounded;
       case SessionActivityType.sessionEnded:
         return Icons.stop_circle_rounded;
       case SessionActivityType.emergencySOS:
@@ -42,6 +59,14 @@ class ActiveSessionPage extends StatelessWidget {
         return _accentBlue;
       case SessionActivityType.playTime:
         return _accentYellow;
+      case SessionActivityType.diaperChange:
+        return const Color(0xFFA78BFA);
+      case SessionActivityType.medication:
+        return const Color(0xFF10B981);
+      case SessionActivityType.photo:
+        return const Color(0xFFF59E0B);
+      case SessionActivityType.note:
+        return _textSecondary;
       case SessionActivityType.sessionEnded:
         return _textSecondary;
       case SessionActivityType.emergencySOS:
@@ -158,7 +183,7 @@ class ActiveSessionPage extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            if (booking.sessionUpdates.isEmpty)
+            if (activities.isEmpty)
               Center(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 40),
@@ -179,11 +204,11 @@ class ActiveSessionPage extends StatelessWidget {
                 ),
               )
             else
-              ...booking.sessionUpdates.asMap().entries.map((entry) {
+              ...activities.asMap().entries.map((entry) {
                 final i = entry.key;
-                final update = entry.value;
-                final isLast = i == booking.sessionUpdates.length - 1;
-                return _timelineItem(update, isLast);
+                final activity = entry.value;
+                final isLast = i == activities.length - 1;
+                return _timelineItem(activity, isLast);
               }),
           ],
         ),
@@ -191,9 +216,9 @@ class ActiveSessionPage extends StatelessWidget {
     );
   }
 
-  Widget _timelineItem(SessionUpdate update, bool isLast) {
-    final color = _activityColor(update.type);
-    final icon = _activityIcon(update.type);
+  Widget _timelineItem(SessionActivity activity, bool isLast) {
+    final color = _activityColor(activity.type);
+    final icon = _activityIcon(activity.type);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -239,7 +264,7 @@ class ActiveSessionPage extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      update.label,
+                      activity.type.label,
                       style: TextStyle(
                         color: color,
                         fontSize: 14,
@@ -247,7 +272,7 @@ class ActiveSessionPage extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '${update.timestamp.hour}:${update.timestamp.minute.toString().padLeft(2, '0')}',
+                      '${activity.timestamp.hour}:${activity.timestamp.minute.toString().padLeft(2, '0')}',
                       style: const TextStyle(
                         color: _textSecondary,
                         fontSize: 11,
@@ -255,10 +280,10 @@ class ActiveSessionPage extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (update.note != null) ...[
+                if (activity.message != null) ...[
                   const SizedBox(height: 6),
                   Text(
-                    update.note!,
+                    activity.message!,
                     style: const TextStyle(
                       color: _textSecondary,
                       fontSize: 13,
