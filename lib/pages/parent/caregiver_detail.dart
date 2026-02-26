@@ -442,7 +442,9 @@ class CaregiverDetailPage extends StatelessWidget {
                       caregiverName: caregiver.name,
                       status: BookingStatus.pending,
                       date: DateTime.now().add(const Duration(days: 1)),
-                      timeSlot: '9:00 AM – 1:00 PM',
+                      startTime: '9:00 AM',
+                      endTime: '1:00 PM',
+                      duration: 4,
                       totalCost: caregiver.hourlyRate * 4,
                     ),
                   );

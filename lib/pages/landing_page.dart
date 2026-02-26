@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../auth_state.dart';
 import 'login_page.dart';
 import 'profile_page.dart';
+import 'parent/parent_home.dart';
 
 class TenderTrustLandingPage extends StatefulWidget {
   const TenderTrustLandingPage({super.key});
@@ -72,6 +73,23 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
         ),
       ],
     );
+  }
+
+  // ─── Navigation Helpers ──────────────────────────────────────────────
+  void _navigateToLogin() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const LoginPage()));
+  }
+
+  void _navigateToParentHome() {
+    if (AuthState().isLoggedIn) {
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const ParentHome()));
+    } else {
+      _navigateToLogin();
+    }
   }
 
   @override
@@ -277,9 +295,14 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
               'Find a Caregiver',
               Icons.search_rounded,
               primaryColor,
+              onPressed: _navigateToParentHome,
             ),
             const SizedBox(height: 12),
-            _buildOutlineButton('Join as Caregiver', Icons.person_add_rounded),
+            _buildOutlineButton(
+              'Join as Caregiver',
+              Icons.person_add_rounded,
+              onPressed: _navigateToLogin,
+            ),
             const SizedBox(height: 32),
             // Illustration card
             _buildHeroCard(),
@@ -513,26 +536,30 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
           child: Icon(icon, color: Colors.white, size: 18),
         ),
         const SizedBox(width: 10),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              value,
-              style: const TextStyle(
-                color: textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: const TextStyle(
+                  color: textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
-            ),
-            Text(
-              label,
-              style: const TextStyle(
-                color: textSecondary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
+              Text(
+                label,
+                style: const TextStyle(
+                  color: textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
@@ -925,12 +952,14 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Text(
-                    f,
-                    style: const TextStyle(
-                      color: textSecondary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                  Expanded(
+                    child: Text(
+                      f,
+                      style: const TextStyle(
+                        color: textSecondary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
@@ -951,7 +980,7 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  onTap: () {},
+                  onTap: _navigateToLogin,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     child: Text(
@@ -1325,7 +1354,7 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: () {},
+                    onTap: _navigateToParentHome,
                     child: const Padding(
                       padding: EdgeInsets.symmetric(vertical: 14),
                       child: Row(
@@ -1371,7 +1400,7 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: () {},
+                    onTap: _navigateToLogin,
                     child: const Padding(
                       padding: EdgeInsets.symmetric(vertical: 14),
                       child: Row(
@@ -1503,10 +1532,38 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
               final label = item['label'] as String;
 
               return GestureDetector(
-                onTap: () => setState(() => _currentNavIndex = i),
+                onTap: () {
+                  setState(() => _currentNavIndex = i);
+                  switch (i) {
+                    case 0: // Home — scroll to top
+                      _scrollController.animateTo(
+                        0,
+                        duration: const Duration(milliseconds: 500),
+                        curve: Curves.easeOut,
+                      );
+                      break;
+                    case 1: // Search — go to ParentHome (browse caregivers)
+                      _navigateToParentHome();
+                      break;
+                    case 2: // Bookings
+                      _navigateToParentHome();
+                      break;
+                    case 3: // Profile
+                      if (AuthState().isLoggedIn) {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const ProfilePage(),
+                          ),
+                        );
+                      } else {
+                        _navigateToLogin();
+                      }
+                      break;
+                  }
+                },
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
+                    horizontal: 10,
                     vertical: 8,
                   ),
                   decoration: isActive
@@ -1571,7 +1628,12 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
     );
   }
 
-  Widget _buildPrimaryButton(String text, IconData icon, Color color) {
+  Widget _buildPrimaryButton(
+    String text,
+    IconData icon,
+    Color color, {
+    VoidCallback? onPressed,
+  }) {
     return SizedBox(
       width: double.infinity,
       child: Container(
@@ -1585,7 +1647,7 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () {},
+            onTap: onPressed,
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Row(
@@ -1610,7 +1672,11 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
     );
   }
 
-  Widget _buildOutlineButton(String text, IconData icon) {
+  Widget _buildOutlineButton(
+    String text,
+    IconData icon, {
+    VoidCallback? onPressed,
+  }) {
     return SizedBox(
       width: double.infinity,
       child: Container(
@@ -1624,7 +1690,7 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () {},
+            onTap: onPressed,
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Row(

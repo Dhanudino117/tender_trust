@@ -30,6 +30,8 @@ class BookingCard extends StatelessWidget {
         return const Color(0xFFE53935);
       case BookingStatus.rejected:
         return _textSecondary;
+      case BookingStatus.cancelled:
+        return _textSecondary;
     }
   }
 

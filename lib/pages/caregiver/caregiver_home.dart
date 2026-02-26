@@ -24,6 +24,11 @@ class CaregiverHome extends StatefulWidget {
 
 class _CaregiverHomeState extends State<CaregiverHome> {
   int _currentIndex = 0;
+  // Local status overrides for mock mode (in production, Firestore handles this)
+  final Map<String, BookingStatus> _statusOverrides = {};
+
+  BookingStatus _getStatus(BookingModel b) =>
+      _statusOverrides[b.id] ?? b.status;
 
   @override
   Widget build(BuildContext context) {
@@ -105,8 +110,8 @@ class _CaregiverHomeState extends State<CaregiverHome> {
     final pendingBookings = mockBookings
         .where(
           (b) =>
-              b.status == BookingStatus.pending ||
-              b.status == BookingStatus.accepted,
+              _getStatus(b) == BookingStatus.pending ||
+              _getStatus(b) == BookingStatus.accepted,
         )
         .toList();
 
@@ -304,7 +309,10 @@ class _CaregiverHomeState extends State<CaregiverHome> {
               Expanded(
                 child: OutlinedButton(
                   onPressed: () {
-                    setState(() => booking.status = BookingStatus.rejected);
+                    setState(
+                      () =>
+                          _statusOverrides[booking.id] = BookingStatus.rejected,
+                    );
                   },
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFFE53935),
@@ -327,7 +335,10 @@ class _CaregiverHomeState extends State<CaregiverHome> {
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {
-                    setState(() => booking.status = BookingStatus.accepted);
+                    setState(
+                      () =>
+                          _statusOverrides[booking.id] = BookingStatus.accepted,
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _secondaryColor,
@@ -354,8 +365,8 @@ class _CaregiverHomeState extends State<CaregiverHome> {
     final activeBookings = mockBookings
         .where(
           (b) =>
-              b.status == BookingStatus.ongoing ||
-              b.status == BookingStatus.accepted,
+              _getStatus(b) == BookingStatus.ongoing ||
+              _getStatus(b) == BookingStatus.accepted,
         )
         .toList();
 

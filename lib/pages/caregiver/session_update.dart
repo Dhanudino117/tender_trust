@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/booking_model.dart';
+import '../../models/session_model.dart';
 
 const Color _primaryColor = Color(0xFFFF7E67);
 const Color _secondaryColor = Color(0xFF56C6A9);
@@ -21,6 +22,15 @@ class SessionUpdatePage extends StatefulWidget {
 
 class _SessionUpdatePageState extends State<SessionUpdatePage> {
   final _noteController = TextEditingController();
+  // Local activity list for UI display (mock — in production, these go to Firestore)
+  final List<SessionActivity> _activities = [];
+  late BookingStatus _currentStatus;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentStatus = widget.booking.status;
+  }
 
   @override
   void dispose() {
@@ -31,19 +41,21 @@ class _SessionUpdatePageState extends State<SessionUpdatePage> {
   void _sendUpdate(SessionActivityType type) {
     final note = _noteController.text.trim();
     setState(() {
-      widget.booking.sessionUpdates.add(
-        SessionUpdate(
+      _activities.add(
+        SessionActivity(
+          id: 'act_${DateTime.now().millisecondsSinceEpoch}',
           type: type,
+          message: note.isNotEmpty ? note : null,
+          caregiverId: widget.booking.caregiverId,
           timestamp: DateTime.now(),
-          note: note.isNotEmpty ? note : null,
         ),
       );
       if (type == SessionActivityType.sessionEnded) {
-        widget.booking.status = BookingStatus.completed;
+        _currentStatus = BookingStatus.completed;
       } else if (type == SessionActivityType.emergencySOS) {
-        widget.booking.status = BookingStatus.emergency;
-      } else if (widget.booking.status == BookingStatus.accepted) {
-        widget.booking.status = BookingStatus.ongoing;
+        _currentStatus = BookingStatus.emergency;
+      } else if (_currentStatus == BookingStatus.accepted) {
+        _currentStatus = BookingStatus.ongoing;
       }
     });
     _noteController.clear();
@@ -158,7 +170,7 @@ class _SessionUpdatePageState extends State<SessionUpdatePage> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      widget.booking.statusLabel,
+                      _currentStatus.label,
                       style: const TextStyle(
                         color: _secondaryColor,
                         fontSize: 11,
@@ -282,7 +294,7 @@ class _SessionUpdatePageState extends State<SessionUpdatePage> {
             const SizedBox(height: 24),
 
             // Timeline of sent updates
-            if (widget.booking.sessionUpdates.isNotEmpty) ...[
+            if (_activities.isNotEmpty) ...[
               const Text(
                 'Sent Updates',
                 style: TextStyle(
@@ -292,9 +304,7 @@ class _SessionUpdatePageState extends State<SessionUpdatePage> {
                 ),
               ),
               const SizedBox(height: 12),
-              ...widget.booking.sessionUpdates.reversed.map(
-                (u) => _updateChip(u),
-              ),
+              ..._activities.reversed.map((a) => _updateChip(a)),
             ],
           ],
         ),
@@ -332,7 +342,7 @@ class _SessionUpdatePageState extends State<SessionUpdatePage> {
     );
   }
 
-  Widget _updateChip(SessionUpdate update) {
+  Widget _updateChip(SessionActivity activity) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -343,7 +353,7 @@ class _SessionUpdatePageState extends State<SessionUpdatePage> {
       child: Row(
         children: [
           Text(
-            update.label,
+            activity.type.label,
             style: const TextStyle(
               color: _textPrimary,
               fontWeight: FontWeight.w600,
@@ -352,7 +362,7 @@ class _SessionUpdatePageState extends State<SessionUpdatePage> {
           ),
           const Spacer(),
           Text(
-            '${update.timestamp.hour}:${update.timestamp.minute.toString().padLeft(2, '0')}',
+            '${activity.timestamp.hour}:${activity.timestamp.minute.toString().padLeft(2, '0')}',
             style: const TextStyle(color: _textSecondary, fontSize: 11),
           ),
         ],
