@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+// import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../auth_state.dart';
 import 'welcome.dart';
@@ -87,33 +89,47 @@ class _ProfilePageState extends State<ProfilePage>
 
   /// Upload image to Firebase Storage and save URL to Firestore
   Future<void> _uploadProfileImage(XFile imageFile) async {
-    final auth = AuthState();
-    if (!auth.isLoggedIn) return;
+  final auth = AuthState();
+  if (!auth.isLoggedIn) return;
 
-    setState(() => _isUploading = true);
+  setState(() => _isUploading = true);
 
-    try {
-      // Upload to Firebase Storage
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('profile_photos')
-          .child('${auth.userId}.jpg');
+  try {
+    final bytes = await imageFile.readAsBytes();
 
-      // Read bytes from XFile (works on web and mobile) and upload with putData
-      final bytes = await imageFile.readAsBytes();
-      // Try to infer mime type from name
-      final name = imageFile.name.toLowerCase();
-      String contentType = 'image/jpeg';
-      if (name.endsWith('.png')) contentType = 'image/png';
-      if (name.endsWith('.gif')) contentType = 'image/gif';
+    var request = http.MultipartRequest(
+      'POST',
+      Uri.parse(
+        'https://api.cloudinary.com/v1_1/demtcemkk/image/upload',
+      ),
+    );
 
-      await ref.putData(bytes, SettableMetadata(contentType: contentType));
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: imageFile.name,
+      ),
+    );
 
-      final downloadUrl = await ref.getDownloadURL();
+    request.fields['upload_preset'] = 'tendertrust_upload';
 
-      // Save photo URL in Firestore user document
-      await FirebaseFirestore.instance.collection('users').doc(auth.userId).set(
-        {'photoUrl': downloadUrl, 'updatedAt': FieldValue.serverTimestamp()},
+    var response = await request.send();
+
+    if (response.statusCode == 200) {
+      var responseData = await response.stream.bytesToString();
+      var jsonData = json.decode(responseData);
+
+      String downloadUrl = jsonData['secure_url'];
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(auth.userId)
+          .set(
+        {
+          'photoUrl': downloadUrl,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
         SetOptions(merge: true),
       );
 
@@ -122,6 +138,7 @@ class _ProfilePageState extends State<ProfilePage>
           _profileImageUrl = downloadUrl;
           _isUploading = false;
         });
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Profile photo updated!'),
@@ -129,56 +146,48 @@ class _ProfilePageState extends State<ProfilePage>
           ),
         );
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isUploading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to upload photo: $e'),
-            backgroundColor: const Color(0xFFE53935),
-          ),
-        );
-      }
+    } else {
+      throw Exception('Upload failed');
+    }
+  } catch (e) {
+    if (mounted) {
+      setState(() => _isUploading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to upload photo: $e'),
+          backgroundColor: const Color(0xFFE53935),
+        ),
+      );
     }
   }
+}
 
-  /// Remove profile photo from Firebase Storage and Firestore
-  Future<void> _removeProfileImage() async {
-    final auth = AuthState();
-    if (!auth.isLoggedIn) return;
+Future<void> _removeProfileImage() async {
+  final auth = AuthState();
+  if (!auth.isLoggedIn) return;
 
-    setState(() => _isUploading = true);
+  setState(() => _isUploading = true);
 
-    try {
-      // Delete from Firebase Storage
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('profile_photos')
-          .child('${auth.userId}.jpg');
-      try {
-        await ref.delete();
-      } catch (_) {
-        // File may not exist, that's fine
-      }
+  try {
+    // Remove URL from Firestore only
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(auth.userId)
+        .update({'photoUrl': FieldValue.delete()});
 
-      // Remove URL from Firestore
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(auth.userId)
-          .update({'photoUrl': FieldValue.delete()});
-
-      if (mounted) {
-        setState(() {
-          _profileImageUrl = null;
-          _isUploading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isUploading = false);
-      }
+    if (mounted) {
+      setState(() {
+        _profileImageUrl = null;
+        _isUploading = false;
+      });
+    }
+  } catch (e) {
+    if (mounted) {
+      setState(() => _isUploading = false);
     }
   }
+}
 
   void _handleLogout() {
     AuthState().logout();
