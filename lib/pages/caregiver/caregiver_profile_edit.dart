@@ -1,4 +1,11 @@
+import 'dart:convert';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../auth_state.dart';
 import '../../data/mock_data.dart';
 
@@ -8,7 +15,6 @@ const Color _accentBlue = Color(0xFF7F9CF5);
 const Color _bgColor = Color(0xFFFFF9F0);
 const Color _cardColor = Color(0xFFFFFFFF);
 const Color _textPrimary = Color(0xFF2D3047);
-const Color _textSecondary = Color(0xFF6B7280);
 const Color _borderColor = Color(0xFFE8D5C4);
 
 class CaregiverProfileEditPage extends StatefulWidget {
@@ -25,15 +31,32 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
   final _rateController = TextEditingController();
   final _experienceController = TextEditingController();
 
+  bool _isUploading = false;
+  String? _uploadedDocumentUrl;
+  String? _selectedFileName;
+
   @override
   void initState() {
     super.initState();
-    // Pre-fill with first mock caregiver data
+
     final cg = mockCaregivers.first;
     _bioController.text = cg.bio;
     _locationController.text = cg.location;
     _rateController.text = cg.hourlyRate.toInt().toString();
     _experienceController.text = cg.experienceYears.toString();
+
+    _loadSavedDocument();
+  }
+
+  Future<void> _loadSavedDocument() async {
+    final prefs = await SharedPreferences.getInstance();
+    final url = prefs.getString("caregiver_document");
+
+    if (url != null) {
+      setState(() {
+        _uploadedDocumentUrl = url;
+      });
+    }
   }
 
   @override
@@ -45,13 +68,87 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
     super.dispose();
   }
 
+  /// PICK IMAGE OR PDF
+  Future<void> _pickDocument() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      withData: true,
+    );
+
+    if (result != null) {
+      final file = result.files.single;
+
+      setState(() {
+        _isUploading = true;
+        _selectedFileName = file.name;
+      });
+
+      await _uploadDocumentToCloudinary(file.bytes!, file.name);
+
+      setState(() {
+        _isUploading = false;
+      });
+    }
+  }
+
+  /// UPLOAD TO CLOUDINARY
+  Future<void> _uploadDocumentToCloudinary(
+      List<int> bytes, String fileName) async {
+    final url =
+        Uri.parse("https://api.cloudinary.com/v1_1/demtcemkk/auto/upload");
+
+    try {
+      var request = http.MultipartRequest("POST", url);
+
+      request.fields["upload_preset"] = "tendertrust_upload";
+
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          "file",
+          bytes,
+          filename: fileName,
+        ),
+      );
+
+      var response = await request.send();
+
+      if (response.statusCode == 200) {
+        final responseData = await response.stream.bytesToString();
+        final data = jsonDecode(responseData);
+
+        final uploadedUrl = data["secure_url"];
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString("caregiver_document", uploadedUrl);
+
+        await FirebaseFirestore.instance
+            .collection("users")
+            .doc(AuthState().userId)
+            .update({
+          "documentUrl": uploadedUrl,
+          "verificationStatus": "pending",
+        });
+
+        setState(() {
+          _uploadedDocumentUrl = uploadedUrl;
+        });
+      }
+    } catch (e) {
+      debugPrint("Upload error: $e");
+    }
+  }
+
+  bool _isPdf(String url) {
+    return url.toLowerCase().contains(".pdf");
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bgColor,
       appBar: AppBar(
         backgroundColor: _bgColor,
-        surfaceTintColor: _bgColor,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded, color: _textPrimary),
@@ -72,51 +169,7 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Avatar section
-            Center(
-              child: Stack(
-                children: [
-                  Container(
-                    width: 90,
-                    height: 90,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [_primaryColor, Color(0xFFFF9A85)],
-                      ),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        AuthState().initials,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 32,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      width: 30,
-                      height: 30,
-                      decoration: BoxDecoration(
-                        color: _accentBlue,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: _bgColor, width: 2),
-                      ),
-                      child: const Icon(
-                        Icons.camera_alt_rounded,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+
             const SizedBox(height: 28),
 
             _buildField(
@@ -125,13 +178,17 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
               maxLines: 3,
               hint: 'Tell parents about yourself...',
             ),
+
             const SizedBox(height: 16),
+
             _buildField(
               'Location',
               _locationController,
               icon: Icons.location_on_outlined,
             ),
+
             const SizedBox(height: 16),
+
             Row(
               children: [
                 Expanded(
@@ -153,78 +210,126 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
                 ),
               ],
             ),
+
             const SizedBox(height: 24),
 
-            // Verification section
+            /// UPLOAD SECTION
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: _secondaryColor.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: _secondaryColor.withValues(alpha: 0.3),
-                ),
               ),
               child: Row(
                 children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: _secondaryColor.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.verified_user_rounded,
-                      color: _secondaryColor,
-                      size: 22,
-                    ),
-                  ),
+                  const Icon(Icons.verified_user_rounded,
+                      color: _secondaryColor),
                   const SizedBox(width: 14),
                   const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Upload ID Verification',
-                          style: TextStyle(
-                            color: _textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          'Get a verified badge on your profile',
-                          style: TextStyle(color: _textSecondary, fontSize: 12),
-                        ),
-                      ],
+                    child: Text(
+                      'Upload ID Verification',
+                      style: TextStyle(
+                        color: _textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _secondaryColor,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Text(
-                      'Upload',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
+                  GestureDetector(
+                    onTap: _isUploading ? null : _pickDocument,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _accentBlue,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Text(
+                        'Upload',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
+
+            /// SHOW SELECTED FILE NAME
+            if (_selectedFileName != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  "Selected File: $_selectedFileName",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+
+            /// UPLOADING STATE
+            if (_isUploading)
+              const Padding(
+                padding: EdgeInsets.only(top: 10),
+                child: Text(
+                  "Uploading...",
+                  style: TextStyle(
+                    color: Colors.orange,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+
+            /// AFTER UPLOAD
+            if (!_isUploading && _uploadedDocumentUrl != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+
+                    const Text(
+                      "Uploaded ✓",
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+
+                    const SizedBox(height: 4),
+
+                    const Text(
+                      "Verification Status: Pending",
+                      style: TextStyle(
+                        color: Colors.orange,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    _isPdf(_uploadedDocumentUrl!)
+                        ? Row(
+                            children: const [
+                              Icon(Icons.picture_as_pdf,
+                                  color: Colors.red, size: 32),
+                              SizedBox(width: 8),
+                              Text("PDF Uploaded"),
+                            ],
+                          )
+                        : Image.network(
+                            _uploadedDocumentUrl!,
+                            height: 100,
+                          ),
+                  ],
+                ),
+              ),
+
             const SizedBox(height: 24),
 
-            // Save button
+            /// SAVE BUTTON
             SizedBox(
               width: double.infinity,
               height: 52,
@@ -232,15 +337,8 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: const Text(
-                        'Profile updated! ✓',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
+                      content: const Text('Profile updated! ✓'),
                       backgroundColor: _secondaryColor,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
                     ),
                   );
                   Navigator.of(context).pop();
@@ -248,13 +346,13 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _primaryColor,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
                 ),
                 child: const Text(
                   'Save Changes',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
                 ),
               ),
             ),
@@ -275,56 +373,26 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: _textPrimary,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
+        Text(label,
+            style: const TextStyle(
+                color: _textPrimary, fontWeight: FontWeight.w700)),
         const SizedBox(height: 6),
         Container(
           decoration: BoxDecoration(
             color: _cardColor,
             borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: _borderColor.withValues(alpha: 0.15),
-                blurRadius: 8,
-                offset: const Offset(0, 3),
-              ),
-            ],
+            border: Border.all(color: _borderColor),
           ),
           child: TextField(
             controller: controller,
             maxLines: maxLines,
             keyboardType: keyboardType,
-            style: const TextStyle(color: _textPrimary, fontSize: 14),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: TextStyle(
-                color: _textSecondary.withValues(alpha: 0.4),
-              ),
-              prefixIcon: icon != null
-                  ? Icon(icon, color: _accentBlue, size: 20)
-                  : null,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: _borderColor, width: 1.5),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: _borderColor, width: 1.5),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: _primaryColor, width: 2),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 12,
-              ),
+              prefixIcon: icon != null ? Icon(icon) : null,
+              border: InputBorder.none,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             ),
           ),
         ),
