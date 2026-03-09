@@ -40,22 +40,51 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
     super.initState();
 
     final cg = mockCaregivers.first;
+
     _bioController.text = cg.bio;
     _locationController.text = cg.location;
     _rateController.text = cg.hourlyRate.toInt().toString();
     _experienceController.text = cg.experienceYears.toString();
 
-    _loadSavedDocument();
+    _loadDocument();
   }
 
-  Future<void> _loadSavedDocument() async {
-    final prefs = await SharedPreferences.getInstance();
-    final url = prefs.getString("caregiver_document");
+  /// LOAD DOCUMENT FROM FIRESTORE (Primary Source)
+  Future<void> _loadDocument() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection("users")
+          .doc(AuthState().userId)
+          .get();
 
-    if (url != null) {
-      setState(() {
-        _uploadedDocumentUrl = url;
-      });
+      if (!mounted) return;
+
+      if (doc.exists) {
+        final data = doc.data();
+        final url = data?["documentUrl"];
+
+        if (url != null) {
+          setState(() {
+            _uploadedDocumentUrl = url;
+          });
+
+          /// Cache locally
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString("caregiver_document", url);
+        }
+      } else {
+        /// fallback to local cache
+        final prefs = await SharedPreferences.getInstance();
+        final cachedUrl = prefs.getString("caregiver_document");
+
+        if (cachedUrl != null && mounted) {
+          setState(() {
+            _uploadedDocumentUrl = cachedUrl;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("Error loading document: $e");
     }
   }
 
@@ -68,7 +97,7 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
     super.dispose();
   }
 
-  /// PICK IMAGE OR PDF
+  /// PICK FILE
   Future<void> _pickDocument() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -79,6 +108,8 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
     if (result != null) {
       final file = result.files.single;
 
+      if (file.bytes == null) return;
+
       setState(() {
         _isUploading = true;
         _selectedFileName = file.name;
@@ -86,13 +117,15 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
 
       await _uploadDocumentToCloudinary(file.bytes!, file.name);
 
-      setState(() {
-        _isUploading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+        });
+      }
     }
   }
 
-  /// UPLOAD TO CLOUDINARY
+  /// UPLOAD FILE
   Future<void> _uploadDocumentToCloudinary(
       List<int> bytes, String fileName) async {
     final url =
@@ -111,7 +144,7 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
         ),
       );
 
-      var response = await request.send();
+      final response = await request.send();
 
       if (response.statusCode == 200) {
         final responseData = await response.stream.bytesToString();
@@ -119,9 +152,7 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
 
         final uploadedUrl = data["secure_url"];
 
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString("caregiver_document", uploadedUrl);
-
+        /// Save to Firestore
         await FirebaseFirestore.instance
             .collection("users")
             .doc(AuthState().userId)
@@ -130,9 +161,15 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
           "verificationStatus": "pending",
         });
 
-        setState(() {
-          _uploadedDocumentUrl = uploadedUrl;
-        });
+        /// Cache locally
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString("caregiver_document", uploadedUrl);
+
+        if (mounted) {
+          setState(() {
+            _uploadedDocumentUrl = uploadedUrl;
+          });
+        }
       }
     } catch (e) {
       debugPrint("Upload error: $e");
@@ -213,7 +250,6 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
 
             const SizedBox(height: 24),
 
-            /// UPLOAD SECTION
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -257,19 +293,15 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
               ),
             ),
 
-            /// SHOW SELECTED FILE NAME
             if (_selectedFileName != null)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   "Selected File: $_selectedFileName",
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
 
-            /// UPLOADING STATE
             if (_isUploading)
               const Padding(
                 padding: EdgeInsets.only(top: 10),
@@ -282,7 +314,6 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
                 ),
               ),
 
-            /// AFTER UPLOAD
             if (!_isUploading && _uploadedDocumentUrl != null)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
@@ -329,7 +360,6 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
 
             const SizedBox(height: 24),
 
-            /// SAVE BUTTON
             SizedBox(
               width: double.infinity,
               height: 52,
