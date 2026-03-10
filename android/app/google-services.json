@@ -1,26 +1,36 @@
 {
   "project_info": {
-    "project_number": "769428111995",
-    "project_id": "tendertrust-trustforge",
-    "storage_bucket": "tendertrust-trustforge.firebasestorage.app"
+    "project_number": "42197995212",
+    "project_id": "trust-forge-3899b",
+    "storage_bucket": "trust-forge-3899b.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:769428111995:android:08287e728cca8f646b98de",
+        "mobilesdk_app_id": "1:42197995212:android:7941b4847b3429e7a8bc69",
         "android_client_info": {
           "package_name": "com.example.tender_trust"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "42197995212-h8uv5olf4vltp68gno2idft8jnnmjvgo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyCNmpZIgZVAbss3ndPPXLOLu7ksi3jWpyw"
+          "current_key": "AIzaSyAt8rIzEB3gr1oJCeQxPfDOqtKHtCglgXw"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "42197995212-h8uv5olf4vltp68gno2idft8jnnmjvgo.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

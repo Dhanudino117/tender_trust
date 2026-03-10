@@ -1,3 +1,5 @@
+// ignore_for_file: unnecessary_underscores, unused_element
+
 import 'package:flutter/material.dart';
 import '../models/session_model.dart';
 

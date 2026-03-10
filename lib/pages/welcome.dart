@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'login_page.dart';
+import '../auth_state.dart';
 import 'parent/parent_home.dart';
+import 'caregiver/caregiver_home.dart';
 
 // ─── Childcare Color Palette ──────────────────────────────────────────────
 const Color primaryColor = Color(0xFFFF7E67);
@@ -53,40 +55,45 @@ class _WelcomePageState extends State<WelcomePage>
       CurvedAnimation(parent: _mainController, curve: Curves.easeOutBack),
     );
 
-    _logoRotate = Tween<double>(begin: -0.1, end: 0.0).animate(
-      CurvedAnimation(parent: _mainController, curve: Curves.easeOut),
-    );
+    _logoRotate = Tween<double>(
+      begin: -0.1,
+      end: 0.0,
+    ).animate(CurvedAnimation(parent: _mainController, curve: Curves.easeOut));
 
-    _logoOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _mainController, curve: Curves.easeIn),
-    );
+    _logoOpacity = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _mainController, curve: Curves.easeIn));
 
-    _titleSlide =
-        Tween<Offset>(begin: const Offset(0, 0.4), end: Offset.zero).animate(
-      CurvedAnimation(parent: _mainController, curve: Curves.easeOut),
-    );
+    _titleSlide = Tween<Offset>(
+      begin: const Offset(0, 0.4),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _mainController, curve: Curves.easeOut));
 
-    _titleOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _mainController, curve: Curves.easeIn),
-    );
+    _titleOpacity = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _mainController, curve: Curves.easeIn));
 
-    _buttonsSlide =
-        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
-      CurvedAnimation(parent: _mainController, curve: Curves.easeOut),
-    );
+    _buttonsSlide = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _mainController, curve: Curves.easeOut));
 
-    _buttonsOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _mainController, curve: Curves.easeIn),
-    );
+    _buttonsOpacity = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _mainController, curve: Curves.easeIn));
 
-    _cardSlide =
-        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
-      CurvedAnimation(parent: _mainController, curve: Curves.easeOut),
-    );
+    _cardSlide = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _mainController, curve: Curves.easeOut));
 
-    _cardOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _mainController, curve: Curves.easeIn),
-    );
+    _cardOpacity = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _mainController, curve: Curves.easeIn));
 
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
@@ -114,8 +121,10 @@ class _WelcomePageState extends State<WelcomePage>
           builder: (context, _) {
             return Center(
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 36),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 36,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -216,17 +225,44 @@ class _WelcomePageState extends State<WelcomePage>
             backgroundColor: primaryColor,
             foregroundColor: cardColor,
           ),
-          onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const ParentHome()),
-            (route) => false,
-          ),
+          onPressed: () {
+            if (AuthState().isLoggedIn) {
+              final userRole = AuthState().userRole;
+              final destination = userRole == 'Caregiver'
+                  ? const CaregiverHome()
+                  : const ParentHome();
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => destination),
+                (route) => false,
+              );
+            } else {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const ParentHome()),
+                (route) => false,
+              );
+            }
+          },
           child: const Text('Get Started'),
         ),
         const SizedBox(height: 12),
         OutlinedButton(
-          onPressed: () => Navigator.of(context)
-              .push(MaterialPageRoute(builder: (_) => const LoginPage())),
-          child: const Text('Join as Caregiver'),
+          onPressed: () {
+            if (AuthState().isLoggedIn) {
+              final userRole = AuthState().userRole;
+              final destination = userRole == 'Caregiver'
+                  ? const CaregiverHome()
+                  : const ParentHome();
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => destination),
+                (route) => false,
+              );
+            } else {
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const LoginPage()));
+            }
+          },
+          child: const Text('Sign In / Join'),
         ),
       ],
     );
