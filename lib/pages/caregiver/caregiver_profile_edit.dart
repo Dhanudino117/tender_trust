@@ -4,9 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-import '../../auth_state.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../features/auth/auth_providers.dart';
 import '../../data/mock_data.dart';
 
 const Color _primaryColor = Color(0xFFFF7E67);
@@ -17,19 +16,19 @@ const Color _cardColor = Color(0xFFFFFFFF);
 const Color _textPrimary = Color(0xFF2D3047);
 const Color _borderColor = Color(0xFFE8D5C4);
 
-class CaregiverProfileEditPage extends StatefulWidget {
+class CaregiverProfileEditPage extends ConsumerStatefulWidget {
   const CaregiverProfileEditPage({super.key});
 
   @override
-  State<CaregiverProfileEditPage> createState() =>
+  ConsumerState<CaregiverProfileEditPage> createState() =>
       _CaregiverProfileEditPageState();
 }
 
-class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
+class _CaregiverProfileEditPageState
+    extends ConsumerState<CaregiverProfileEditPage> {
   final _bioController = TextEditingController();
   final _locationController = TextEditingController();
   final _rateController = TextEditingController();
-  final _experienceController = TextEditingController();
 
   bool _isUploading = false;
   String? _uploadedDocumentUrl;
@@ -44,48 +43,6 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
     _bioController.text = cg.bio;
     _locationController.text = cg.location;
     _rateController.text = cg.hourlyRate.toInt().toString();
-    _experienceController.text = cg.experienceYears.toString();
-
-    _loadDocument();
-  }
-
-  /// LOAD DOCUMENT FROM FIRESTORE (Primary Source)
-  Future<void> _loadDocument() async {
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection("users")
-          .doc(AuthState().userId)
-          .get();
-
-      if (!mounted) return;
-
-      if (doc.exists) {
-        final data = doc.data();
-        final url = data?["documentUrl"];
-
-        if (url != null) {
-          setState(() {
-            _uploadedDocumentUrl = url;
-          });
-
-          /// Cache locally
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString("caregiver_document", url);
-        }
-      } else {
-        /// fallback to local cache
-        final prefs = await SharedPreferences.getInstance();
-        final cachedUrl = prefs.getString("caregiver_document");
-
-        if (cachedUrl != null && mounted) {
-          setState(() {
-            _uploadedDocumentUrl = cachedUrl;
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint("Error loading document: $e");
-    }
   }
 
   @override
@@ -93,7 +50,6 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
     _bioController.dispose();
     _locationController.dispose();
     _rateController.dispose();
-    _experienceController.dispose();
     super.dispose();
   }
 
@@ -182,6 +138,8 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(currentUserProvider);
+
     return Scaffold(
       backgroundColor: _bgColor,
       appBar: AppBar(
@@ -206,7 +164,51 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
+            // Avatar section
+            Center(
+              child: Stack(
+                children: [
+                  Container(
+                    width: 90,
+                    height: 90,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [_primaryColor, Color(0xFFFF9A85)],
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        user?.initials ?? '?',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 32,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: _accentBlue,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: _bgColor, width: 2),
+                      ),
+                      child: const Icon(
+                        Icons.camera_alt_rounded,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 28),
 
             _buildField(
@@ -233,15 +235,6 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
                     'Rate (₹/hr)',
                     _rateController,
                     icon: Icons.currency_rupee_rounded,
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildField(
-                    'Experience (yrs)',
-                    _experienceController,
-                    icon: Icons.work_rounded,
                     keyboardType: TextInputType.number,
                   ),
                 ),

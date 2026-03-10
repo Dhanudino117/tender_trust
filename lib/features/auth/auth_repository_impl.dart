@@ -3,6 +3,8 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/errors/failures.dart';
@@ -39,6 +41,12 @@ class AuthRepositoryImpl implements AuthRepository {
         _cachedUser = null;
         return null;
       }
+
+      // If we already have a cached user for this UID, return it immediately
+      if (_cachedUser != null && _cachedUser!.id == firebaseUser.uid) {
+        return _cachedUser;
+      }
+
       // Try to fetch full profile from Firestore
       try {
         final doc = await _usersRef.doc(firebaseUser.uid).get();
@@ -129,8 +137,25 @@ class AuthRepositoryImpl implements AuthRepository {
     } on AuthFailure {
       rethrow;
     } on FirebaseAuthException catch (e) {
+      debugPrint(
+        'FirebaseAuthException during Google Sign-In: ${e.code} - ${e.message}',
+      );
       throw AuthFailure.fromFirebase(e.code, e.message);
+    } on PlatformException catch (e) {
+      debugPrint(
+        'PlatformException during Google Sign-In: ${e.code} - ${e.message}',
+      );
+      String message = 'Google sign-in failed: ${e.message ?? e.code}';
+      if (e.code == '12500') {
+        message =
+            'Sign-in failed (12500). This often means the SHA-1 fingerprint is missing in Firebase Console.';
+      } else if (e.code == '10') {
+        message =
+            'Sign-in failed (10). Please verify your Google Cloud configuration and SHA-1.';
+      }
+      throw AuthFailure(message, code: e.code);
     } catch (e) {
+      debugPrint('Unexpected error during Google Sign-In: $e');
       throw AuthFailure('Google sign-in failed: $e');
     }
   }

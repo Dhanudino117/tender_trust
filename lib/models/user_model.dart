@@ -111,10 +111,18 @@ class UserModel {
   }
 
   String get initials {
-    final parts = name.trim().split(' ');
-    if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    if (parts.isNotEmpty && parts[0].isNotEmpty)
+    final cleanName = name.trim();
+    if (cleanName.isEmpty) return '?';
+    final parts = cleanName
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    if (parts.isNotEmpty) {
       return parts[0][0].toUpperCase();
+    }
     return '?';
   }
 }

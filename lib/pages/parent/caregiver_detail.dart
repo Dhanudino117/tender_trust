@@ -1,7 +1,8 @@
 // ignore_for_file: unused_element
 
 import 'package:flutter/material.dart';
-import '../../auth_state.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../features/auth/auth_providers.dart';
 import '../../models/caregiver_model.dart';
 import '../../models/booking_model.dart';
 import '../../models/review_model.dart';
@@ -19,13 +20,14 @@ const Color _textPrimary = Color(0xFF2D3047);
 const Color _textSecondary = Color(0xFF6B7280);
 const Color _borderColor = Color(0xFFE8D5C4);
 
-class CaregiverDetailPage extends StatelessWidget {
+class CaregiverDetailPage extends ConsumerWidget {
   final CaregiverModel caregiver;
 
   const CaregiverDetailPage({super.key, required this.caregiver});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider);
     final reviews = mockReviews
         .where((r) => r.caregiverId == caregiver.id)
         .toList();
@@ -249,9 +251,9 @@ class CaregiverDetailPage extends StatelessWidget {
       ),
 
       // Book Now FAB
-      floatingActionButton: AuthState().isLoggedIn
+      floatingActionButton: user != null
           ? FloatingActionButton.extended(
-              onPressed: () => _showBookingDialog(context),
+              onPressed: () => _showBookingDialog(context, ref),
               backgroundColor: _primaryColor,
               foregroundColor: Colors.white,
               elevation: 6,
@@ -280,7 +282,7 @@ class CaregiverDetailPage extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               value,
-              style: TextStyle(
+              style: const TextStyle(
                 color: _textPrimary,
                 fontSize: 16,
                 fontWeight: FontWeight.w900,
@@ -386,7 +388,7 @@ class CaregiverDetailPage extends StatelessWidget {
     );
   }
 
-  void _showBookingDialog(BuildContext context) {
+  void _showBookingDialog(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -432,12 +434,15 @@ class CaregiverDetailPage extends StatelessWidget {
               height: 52,
               child: ElevatedButton(
                 onPressed: () {
+                  final user = ref.read(currentUserProvider);
+                  if (user == null) return;
+
                   // Add mock booking
                   mockBookings.add(
                     BookingModel(
                       id: 'bk_new_${DateTime.now().millisecondsSinceEpoch}',
-                      parentId: 'p1',
-                      parentName: AuthState().userName,
+                      parentId: user.id,
+                      parentName: user.name,
                       caregiverId: caregiver.id,
                       caregiverName: caregiver.name,
                       status: BookingStatus.pending,

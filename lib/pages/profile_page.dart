@@ -7,7 +7,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../auth_state.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../features/auth/auth_providers.dart';
+import '../models/user_model.dart';
 import 'welcome.dart';
 import 'login_page.dart';
 import 'caregiver/caregiver_profile_edit.dart';
@@ -23,14 +25,14 @@ const Color _textPrimary = Color(0xFF2D3047);
 const Color _textSecondary = Color(0xFF6B7280);
 const Color _borderColor = Color(0xFFE8D5C4);
 
-class ProfilePage extends StatefulWidget {
+class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
 
   @override
-  State<ProfilePage> createState() => _ProfilePageState();
+  ConsumerState<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage>
+class _ProfilePageState extends ConsumerState<ProfilePage>
     with SingleTickerProviderStateMixin {
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
@@ -73,34 +75,26 @@ class _ProfilePageState extends State<ProfilePage>
 
   /// Load existing profile photo URL from Firestore
   Future<void> _loadProfileImage() async {
-    final auth = AuthState();
-    if (!auth.isLoggedIn) return;
+    final user = ref.read(currentUserProvider);
+    if (user == null) return;
     try {
       final doc = await FirebaseFirestore.instance
           .collection('users')
-          .doc(auth.userId)
+          .doc(user.id)
           .get();
       final data = doc.data();
       if (data != null && data['profileImageUrl'] != null && mounted) {
         setState(() => _profileImageUrl = data['profileImageUrl'] as String);
       }
     } catch (_) {
-      // Silently fail — will show initials
+      
     }
   }
 
-<<<<<<< dino
   /// Upload image to Cloudinary and save URL to Firestore
   Future<void> _uploadProfileImage(XFile imageFile) async {
-    final auth = AuthState();
-    if (!auth.isLoggedIn) return;
-=======
-  /// Upload image to Firebase Storage and save URL to Firestore
-  Future<void> _uploadProfileImage(XFile imageFile) async {
-  final auth = AuthState();
-  if (!auth.isLoggedIn) return;
->>>>>>> main
-
+    final user = ref.read(currentUserProvider);
+    if (user == null) return;
   setState(() => _isUploading = true);
 
     try {
@@ -132,13 +126,10 @@ class _ProfilePageState extends State<ProfilePage>
       final downloadUrl = jsonResponse['secure_url'];
 
       // Save photo URL in Firestore user document
-      await FirebaseFirestore.instance.collection('users').doc(auth.userId).set(
-        {
-          'profileImageUrl': downloadUrl,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      await FirebaseFirestore.instance.collection('users').doc(user.id).set({
+        'profileImageUrl': downloadUrl,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
       if (mounted) {
         setState(() {
@@ -172,18 +163,17 @@ class _ProfilePageState extends State<ProfilePage>
 
   /// Remove profile photo
   Future<void> _removeProfileImage() async {
-    final auth = AuthState();
-    if (!auth.isLoggedIn) return;
+    final user = ref.read(currentUserProvider);
+    if (user == null) return;
 
     setState(() => _isUploading = true);
 
     try {
       // For Cloudinary, we just remove the URL from Firestore.
       // Full deletion would require a server-side signature.
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(auth.userId)
-          .update({'profileImageUrl': FieldValue.delete()});
+      await FirebaseFirestore.instance.collection('users').doc(user.id).update({
+        'profileImageUrl': FieldValue.delete(),
+      });
 
     if (mounted) {
       setState(() {
@@ -199,7 +189,7 @@ class _ProfilePageState extends State<ProfilePage>
 }
 
   void _handleLogout() {
-    AuthState().logout();
+    ref.read(authRepositoryProvider).signOut();
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const WelcomePage()),
       (route) => false,
@@ -355,20 +345,47 @@ class _ProfilePageState extends State<ProfilePage>
 
   @override
   Widget build(BuildContext context) {
-    final auth = AuthState();
+    final user = ref.watch(currentUserProvider);
 
-    // ── Auth Guard: redirect to login if not authenticated ──
-    if (!auth.isLoggedIn) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const LoginPage()),
-          );
-        }
-      });
-      return const Scaffold(
+    // ── Auth Guard: Show login message if not authenticated ──
+    if (user == null) {
+      return Scaffold(
         backgroundColor: _bgColor,
-        body: Center(child: CircularProgressIndicator(color: _primaryColor)),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.lock_outline, size: 64, color: _textSecondary),
+              const SizedBox(height: 16),
+              const Text(
+                'Sign in to view your profile',
+                style: TextStyle(
+                  color: _textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const LoginPage())),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('Sign In / Join'),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
@@ -408,29 +425,29 @@ class _ProfilePageState extends State<ProfilePage>
               child: Column(
                 children: [
                   // ── Avatar & Name ──
-                  _buildAvatarSection(auth),
+                  _buildAvatarSection(user),
                   const SizedBox(height: 28),
 
                   // ── Info Cards ──
                   _buildInfoCard(
                     icon: Icons.email_outlined,
                     label: 'Email',
-                    value: auth.userEmail,
+                    value: user.email,
                     color: _accentBlue,
                   ),
                   const SizedBox(height: 12),
                   _buildInfoCard(
-                    icon: auth.userRole == 'Parent'
+                    icon: user.role == 'Parent'
                         ? Icons.family_restroom_rounded
                         : Icons.volunteer_activism_rounded,
                     label: 'Role',
-                    value: auth.userRole,
+                    value: user.role,
                     color: _secondaryColor,
                   ),
                   const SizedBox(height: 28),
 
                   // ── Stats Section ──
-                  _buildStatsSection(auth),
+                  _buildStatsSection(user),
                   const SizedBox(height: 28),
 
                   // ── Quick Actions ──
@@ -438,34 +455,32 @@ class _ProfilePageState extends State<ProfilePage>
                   const SizedBox(height: 28),
 
                   // ── Logout Button ──
-                  if (auth.isLoggedIn) ...[
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: OutlinedButton.icon(
-                        onPressed: _handleLogout,
-                        icon: const Icon(Icons.logout_rounded, size: 20),
-                        label: const Text(
-                          'Log Out',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: OutlinedButton.icon(
+                      onPressed: _handleLogout,
+                      icon: const Icon(Icons.logout_rounded, size: 20),
+                      label: const Text(
+                        'Log Out',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
                         ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFFE53935),
-                          side: const BorderSide(
-                            color: Color(0xFFE53935),
-                            width: 2,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFE53935),
+                        side: const BorderSide(
+                          color: Color(0xFFE53935),
+                          width: 2,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 20),
-                  ],
+                  ),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
@@ -475,7 +490,7 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
-  Widget _buildAvatarSection(AuthState auth) {
+  Widget _buildAvatarSection(UserModel user) {
     return Column(
       children: [
         GestureDetector(
@@ -534,7 +549,7 @@ class _ProfilePageState extends State<ProfilePage>
                           },
                           errorBuilder: (context, error, stackTrace) => Center(
                             child: Text(
-                              auth.initials,
+                              user.initials,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 36,
@@ -546,7 +561,7 @@ class _ProfilePageState extends State<ProfilePage>
                       )
                     : Center(
                         child: Text(
-                          auth.initials,
+                          user.initials,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 36,
@@ -586,7 +601,7 @@ class _ProfilePageState extends State<ProfilePage>
         ),
         const SizedBox(height: 16),
         Text(
-          auth.userName,
+          user.name,
           style: const TextStyle(
             color: _textPrimary,
             fontSize: 24,
@@ -604,7 +619,7 @@ class _ProfilePageState extends State<ProfilePage>
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                auth.userRole == 'Parent'
+                user.role == 'Parent'
                     ? Icons.family_restroom_rounded
                     : Icons.volunteer_activism_rounded,
                 size: 16,
@@ -612,7 +627,7 @@ class _ProfilePageState extends State<ProfilePage>
               ),
               const SizedBox(width: 6),
               Text(
-                auth.userRole,
+                user.role,
                 style: const TextStyle(
                   color: _secondaryColor,
                   fontSize: 13,
@@ -684,8 +699,8 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
-  Widget _buildStatsSection(AuthState auth) {
-    final isParent = auth.userRole == 'Parent';
+  Widget _buildStatsSection(UserModel user) {
+    final isParent = user.role == 'Parent';
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -785,7 +800,6 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Widget _buildQuickActions() {
-    final auth = AuthState();
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -815,7 +829,7 @@ class _ProfilePageState extends State<ProfilePage>
             Icons.edit_rounded,
             'Edit Profile',
             _accentBlue,
-            onTap: auth.userRole == 'Caregiver'
+            onTap: ref.read(userRoleProvider) == 'Caregiver'
                 ? () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => const CaregiverProfileEditPage(),

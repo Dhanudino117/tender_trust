@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../auth_state.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../features/auth/auth_providers.dart';
 import '../../data/mock_data.dart';
 import '../../widgets/caregiver_card.dart';
 import '../profile_page.dart';
 import '../login_page.dart';
+import '../messages_page.dart';
 import 'caregiver_detail.dart';
 import 'my_bookings.dart';
 
@@ -17,14 +19,14 @@ const Color _textPrimary = Color(0xFF2D3047);
 const Color _textSecondary = Color(0xFF6B7280);
 const Color _borderColor = Color(0xFFE8D5C4);
 
-class ParentHome extends StatefulWidget {
+class ParentHome extends ConsumerStatefulWidget {
   const ParentHome({super.key});
 
   @override
-  State<ParentHome> createState() => _ParentHomeState();
+  ConsumerState<ParentHome> createState() => _ParentHomeState();
 }
 
-class _ParentHomeState extends State<ParentHome> {
+class _ParentHomeState extends ConsumerState<ParentHome> {
   int _currentIndex = 0;
   final _searchController = TextEditingController();
   bool _verifiedOnly = false;
@@ -45,6 +47,7 @@ class _ParentHomeState extends State<ParentHome> {
         children: [
           _buildHomeTab(),
           const MyBookingsPage(),
+          const MessagesPage(),
           const ProfilePage(),
         ],
       ),
@@ -72,7 +75,8 @@ class _ParentHomeState extends State<ParentHome> {
             children: [
               _navItem(0, Icons.home_rounded, 'Home'),
               _navItem(1, Icons.calendar_month_rounded, 'Bookings'),
-              _navItem(2, Icons.person_rounded, 'Profile'),
+              _navItem(2, Icons.message_rounded, 'Messages'),
+              _navItem(3, Icons.person_rounded, 'Profile'),
             ],
           ),
         ),
@@ -82,10 +86,12 @@ class _ParentHomeState extends State<ParentHome> {
 
   Widget _navItem(int index, IconData icon, String label) {
     final isActive = _currentIndex == index;
+    final user = ref.watch(currentUserProvider);
+
     return GestureDetector(
       onTap: () {
-        // Guard: Profile tab requires authentication
-        if (index == 2 && !AuthState().isLoggedIn) {
+        // Guard: Profile and Messages tab require authentication
+        if ((index == 2 || index == 3) && user == null) {
           Navigator.of(
             context,
           ).push(MaterialPageRoute(builder: (_) => const LoginPage()));
@@ -137,6 +143,8 @@ class _ParentHomeState extends State<ParentHome> {
       return true;
     }).toList();
 
+    final user = ref.watch(currentUserProvider);
+
     return SafeArea(
       child: CustomScrollView(
         slivers: [
@@ -154,7 +162,7 @@ class _ParentHomeState extends State<ParentHome> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Hello${AuthState().isLoggedIn ? ', ${AuthState().userName.split(' ').first}' : ''} 👋',
+                              'Hello${user != null ? ', ${user.name.split(' ').first}' : ''} 👋',
                               style: const TextStyle(
                                 color: _textPrimary,
                                 fontSize: 24,
@@ -173,64 +181,55 @@ class _ParentHomeState extends State<ParentHome> {
                           ],
                         ),
                       ),
-                      if (AuthState().isLoggedIn)
-                        ListenableBuilder(
-                          listenable: AuthState(),
-                          builder: (context, _) {
-                            final auth = AuthState();
-                            return GestureDetector(
-                              onTap: () => setState(() => _currentIndex = 2),
-                              child: Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [_primaryColor, Color(0xFFFF9A85)],
-                                  ),
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: _primaryColor.withValues(
-                                        alpha: 0.2,
-                                      ),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: auth.profileImageUrl != null
-                                    ? ClipOval(
-                                        child: Image.network(
-                                          auth.profileImageUrl!,
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) =>
-                                                  Center(
-                                                    child: Text(
-                                                      auth.initials,
-                                                      style: const TextStyle(
-                                                        color: Colors.white,
-                                                        fontSize: 16,
-                                                        fontWeight:
-                                                            FontWeight.w900,
-                                                      ),
-                                                    ),
-                                                  ),
-                                        ),
-                                      )
-                                    : Center(
-                                        child: Text(
-                                          auth.initials,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w900,
-                                          ),
-                                        ),
-                                      ),
+                      if (user != null)
+                        GestureDetector(
+                          onTap: () => setState(() => _currentIndex = 3),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [_primaryColor, Color(0xFFFF9A85)],
                               ),
-                            );
-                          },
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _primaryColor.withValues(alpha: 0.2),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: user.profileImageUrl != null
+                                ? ClipOval(
+                                    child: Image.network(
+                                      user.profileImageUrl!,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              Center(
+                                                child: Text(
+                                                  user.initials,
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w900,
+                                                  ),
+                                                ),
+                                              ),
+                                    ),
+                                  )
+                                : Center(
+                                    child: Text(
+                                      user.initials,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                          ),
                         )
                       else
                         GestureDetector(

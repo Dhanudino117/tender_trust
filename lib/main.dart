@@ -27,8 +27,6 @@ class TenderTrustApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(appUserProvider);
-
     return MaterialApp(
       title: 'TenderTrust — Childcare You Can Trust',
       debugShowCheckedModeBanner: false,
@@ -48,19 +46,41 @@ class TenderTrustApp extends ConsumerWidget {
         ),
         scaffoldBackgroundColor: const Color(0xFFFFF9F0),
       ),
-      home: authState.when(
-        data: (user) {
-          if (user == null) return const TenderTrustLandingPage();
-          return user.role == 'Caregiver'
-              ? const CaregiverHome()
-              : const ParentHome();
-        },
-        loading: () => const Scaffold(
-          body: Center(
-            child: CircularProgressIndicator(color: Color(0xFFFF7E67)),
+      home: const AuthWrapper(),
+    );
+  }
+}
+
+class AuthWrapper extends ConsumerWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(appUserProvider);
+
+    return authState.when(
+      data: (user) {
+        if (user == null) return const TenderTrustLandingPage();
+        return user.role == 'Caregiver'
+            ? const CaregiverHome()
+            : const ParentHome();
+      },
+      loading: () => const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFFFF7E67)),
+        ),
+      ),
+      error: (e, stack) => Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.red),
+              const SizedBox(height: 16),
+              Text('Error: $e'),
+            ],
           ),
         ),
-        error: (e, _) => Scaffold(body: Center(child: Text('Error: $e'))),
       ),
     );
   }
