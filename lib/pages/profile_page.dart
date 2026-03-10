@@ -95,8 +95,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
   Future<void> _uploadProfileImage(XFile imageFile) async {
     final user = ref.read(currentUserProvider);
     if (user == null) return;
-
-    setState(() => _isUploading = true);
+  setState(() => _isUploading = true);
 
     try {
       // Cloudinary configuration
@@ -137,6 +136,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
           _profileImageUrl = downloadUrl;
           _isUploading = false;
         });
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Profile photo updated!'),
@@ -144,18 +144,22 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
           ),
         );
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isUploading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to upload photo: $e'),
-            backgroundColor: const Color(0xFFE53935),
-          ),
-        );
-      }
+    } else {
+      throw Exception('Upload failed');
+    }
+  } catch (e) {
+    if (mounted) {
+      setState(() => _isUploading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to upload photo: $e'),
+          backgroundColor: const Color(0xFFE53935),
+        ),
+      );
     }
   }
+}
 
   /// Remove profile photo
   Future<void> _removeProfileImage() async {
@@ -171,18 +175,18 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
         'profileImageUrl': FieldValue.delete(),
       });
 
-      if (mounted) {
-        setState(() {
-          _profileImageUrl = null;
-          _isUploading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isUploading = false);
-      }
+    if (mounted) {
+      setState(() {
+        _profileImageUrl = null;
+        _isUploading = false;
+      });
+    }
+  } catch (e) {
+    if (mounted) {
+      setState(() => _isUploading = false);
     }
   }
+}
 
   void _handleLogout() {
     ref.read(authRepositoryProvider).signOut();
@@ -306,17 +310,24 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
       return;
     }
 
-    final source = result == 'camera'
-        ? ImageSource.camera
-        : ImageSource.gallery;
-
     try {
-      final XFile? picked = await _picker.pickImage(
-        source: source,
-        maxWidth: 512,
-        maxHeight: 512,
-        imageQuality: 85,
-      );
+      XFile? picked;
+
+      if (kIsWeb && result == 'camera') {
+        // On web, try the HTML capture input which provides a camera prompt
+        picked = await web_picker.pickImageFromWebCamera();
+      }
+
+      if (picked == null) {
+        final source = result == 'camera' ? ImageSource.camera : ImageSource.gallery;
+        picked = await _picker.pickImage(
+          source: source,
+          maxWidth: 512,
+          maxHeight: 512,
+          imageQuality: 85,
+        );
+      }
+
       if (picked != null) {
         await _uploadProfileImage(picked);
       }
