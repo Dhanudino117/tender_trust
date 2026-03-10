@@ -87,7 +87,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
         setState(() => _profileImageUrl = data['profileImageUrl'] as String);
       }
     } catch (_) {
-      // Silently fail — will show initials
+      
     }
   }
 
