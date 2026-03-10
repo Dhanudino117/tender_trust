@@ -23,7 +23,10 @@ class DefaultFirebaseOptions {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        return ios;
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for ios - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
       case TargetPlatform.macOS:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for macos - '
@@ -46,29 +49,22 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyAsnxwVALI5FBcblHdckp7mflh3vonMdgE',
-    appId: '1:769428111995:web:6663fc96c798d6346b98de',
-    messagingSenderId: '769428111995',
-    projectId: 'tendertrust-trustforge',
-    authDomain: 'tendertrust-trustforge.firebaseapp.com',
-    storageBucket: 'tendertrust-trustforge.firebasestorage.app',
-  );
-
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCNmpZIgZVAbss3ndPPXLOLu7ksi3jWpyw',
-    appId: '1:769428111995:android:08287e728cca8f646b98de',
-    messagingSenderId: '769428111995',
-    projectId: 'tendertrust-trustforge',
-    storageBucket: 'tendertrust-trustforge.firebasestorage.app',
+    apiKey: 'AIzaSyAt8rIzEB3gr1oJCeQxPfDOqtKHtCglgXw',
+    appId: '1:42197995212:android:7941b4847b3429e7a8bc69',
+    messagingSenderId: '42197995212',
+    projectId: 'trust-forge-3899b',
+    storageBucket: 'trust-forge-3899b.firebasestorage.app',
   );
 
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDBIgU4c-CockkgGK2Au3M5a44YjmSLmjg',
-    appId: '1:769428111995:ios:22cbfdbfad12c8586b98de',
-    messagingSenderId: '769428111995',
-    projectId: 'tendertrust-trustforge',
-    storageBucket: 'tendertrust-trustforge.firebasestorage.app',
-    iosBundleId: 'com.example.tenderTrust',
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyDPe_B7BMUKO715KH2oS8j5Klz3ekbifHc',
+    appId: '1:42197995212:web:d9ac572808a31d7ca8bc69',
+    messagingSenderId: '42197995212',
+    projectId: 'trust-forge-3899b',
+    authDomain: 'trust-forge-3899b.firebaseapp.com',
+    storageBucket: 'trust-forge-3899b.firebasestorage.app',
+    measurementId: 'G-0ZWPWB1PZ1',
   );
+
 }

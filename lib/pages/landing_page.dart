@@ -5,6 +5,7 @@ import '../auth_state.dart';
 import 'login_page.dart';
 import 'profile_page.dart';
 import 'parent/parent_home.dart';
+import 'caregiver/caregiver_home.dart';
 
 class TenderTrustLandingPage extends StatefulWidget {
   const TenderTrustLandingPage({super.key});
@@ -82,11 +83,16 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
     ).push(MaterialPageRoute(builder: (_) => const LoginPage()));
   }
 
-  void _navigateToParentHome() {
+  void _navigateToHome() {
     if (AuthState().isLoggedIn) {
-      Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => const ParentHome()));
+      final userRole = AuthState().userRole;
+      final destination = userRole == 'Caregiver'
+          ? const CaregiverHome()
+          : const ParentHome();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => destination),
+        (route) => false,
+      );
     } else {
       _navigateToLogin();
     }
@@ -160,34 +166,12 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 12),
-          child: AuthState().isLoggedIn
-              ? GestureDetector(
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ProfilePage()),
-                  ),
-                  child: Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [primaryColor, Color(0xFFFF9A85)],
-                      ),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: borderColor, width: 2),
-                    ),
-                    child: Center(
-                      child: Text(
-                        AuthState().initials,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                  ),
-                )
-              : Container(
+          child: ListenableBuilder(
+            listenable: AuthState(),
+            builder: (context, _) {
+              final auth = AuthState();
+              if (!auth.isLoggedIn) {
+                return Container(
                   decoration: _brutalistBox(
                     color: primaryColor,
                     radius: 4,
@@ -217,7 +201,54 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
                       ),
                     ),
                   ),
+                );
+              }
+              return GestureDetector(
+                onTap: () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const ProfilePage())),
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [primaryColor, Color(0xFFFF9A85)],
+                    ),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: borderColor, width: 2),
+                  ),
+                  child: auth.profileImageUrl != null
+                      ? ClipOval(
+                          child: Image.network(
+                            auth.profileImageUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Center(
+                                  child: Text(
+                                    auth.initials,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                          ),
+                        )
+                      : Center(
+                          child: Text(
+                            auth.initials,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
                 ),
+              );
+            },
+          ),
         ),
       ],
       bottom: PreferredSize(
@@ -295,7 +326,7 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
               'Find a Caregiver',
               Icons.search_rounded,
               primaryColor,
-              onPressed: _navigateToParentHome,
+              onPressed: _navigateToHome,
             ),
             const SizedBox(height: 12),
             _buildOutlineButton(
@@ -1354,7 +1385,7 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
                 child: Material(
                   color: Colors.transparent,
                   child: InkWell(
-                    onTap: _navigateToParentHome,
+                    onTap: _navigateToHome,
                     child: const Padding(
                       padding: EdgeInsets.symmetric(vertical: 14),
                       child: Row(
@@ -1543,10 +1574,10 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
                       );
                       break;
                     case 1: // Search — go to ParentHome (browse caregivers)
-                      _navigateToParentHome();
+                      _navigateToHome();
                       break;
                     case 2: // Bookings
-                      _navigateToParentHome();
+                      _navigateToHome();
                       break;
                     case 3: // Profile
                       if (AuthState().isLoggedIn) {

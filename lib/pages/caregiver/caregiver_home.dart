@@ -3,7 +3,7 @@ import '../../data/mock_data.dart';
 import '../../models/booking_model.dart';
 import '../../widgets/booking_card.dart';
 import '../profile_page.dart';
-import 'caregiver_profile_edit.dart';
+import '../../auth_state.dart';
 import 'session_update.dart';
 
 const Color _primaryColor = Color(0xFFFF7E67);
@@ -108,11 +108,7 @@ class _CaregiverHomeState extends State<CaregiverHome> {
 
   Widget _buildRequestsTab() {
     final pendingBookings = mockBookings
-        .where(
-          (b) =>
-              _getStatus(b) == BookingStatus.pending ||
-              _getStatus(b) == BookingStatus.accepted,
-        )
+        .where((b) => _getStatus(b) == BookingStatus.pending)
         .toList();
 
     return SafeArea(
@@ -123,45 +119,81 @@ class _CaregiverHomeState extends State<CaregiverHome> {
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
             child: Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Incoming Requests',
-                        style: TextStyle(
+                        'Hello${AuthState().isLoggedIn ? ', ${AuthState().userName.split(' ').first}' : ''} 👋',
+                        style: const TextStyle(
                           color: _textPrimary,
                           fontSize: 24,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
-                      SizedBox(height: 4),
-                      Text(
+                      const SizedBox(height: 4),
+                      const Text(
                         'Manage your booking requests',
                         style: TextStyle(color: _textSecondary, fontSize: 13),
                       ),
                     ],
                   ),
                 ),
-                GestureDetector(
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const CaregiverProfileEditPage(),
-                    ),
+                if (AuthState().isLoggedIn)
+                  ListenableBuilder(
+                    listenable: AuthState(),
+                    builder: (context, _) {
+                      final auth = AuthState();
+                      return GestureDetector(
+                        onTap: () => setState(() => _currentIndex = 2),
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [_primaryColor, Color(0xFFFF9A85)],
+                            ),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: _primaryColor.withValues(alpha: 0.2),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: auth.profileImageUrl != null
+                              ? ClipOval(
+                                  child: Image.network(
+                                    auth.profileImageUrl!,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stackTrace) => Center(
+                                          child: Text(
+                                            auth.initials,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                          ),
+                                        ),
+                                  ),
+                                )
+                              : Center(
+                                  child: Text(
+                                    auth.initials,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      );
+                    },
                   ),
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: _accentBlue.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.edit_rounded,
-                      color: _accentBlue,
-                      size: 20,
-                    ),
-                  ),
-                ),
               ],
             ),
           ),

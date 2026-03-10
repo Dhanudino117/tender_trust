@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../auth_state.dart';
 import 'parent/parent_home.dart';
-import 'caregiver/caregiver_home.dart';
 
 const Color _primaryColor = Color(0xFFFF7E67);
 const Color _bgColor = Color(0xFFFFF9F0);
@@ -40,15 +39,20 @@ class _LoginPageState extends State<LoginPage>
   void initState() {
     super.initState();
 
-    _animController =
-        AnimationController(duration: const Duration(milliseconds: 800), vsync: this);
-
-    _fadeAnim = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeOut),
+    _animController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
     );
 
-    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
+    _fadeAnim = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
+
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0, 0.15),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
 
     _animController.forward();
   }
@@ -82,36 +86,12 @@ class _LoginPageState extends State<LoginPage>
         );
       }
 
-      // 🔥 FETCH ROLE FROM FIRESTORE (REAL FIX)
-      final user = FirebaseAuth.instance.currentUser;
-
-      if (user == null) {
-        throw Exception("User not found after login.");
-      }
-
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-
-      if (!doc.exists) {
-        throw Exception("User profile not found in database.");
-      }
-
-      final role = doc.data()?['role'];
-
-      
-
-      final destination = role == 'Caregiver'
-          ? const CaregiverHome()
-          : const ParentHome();
-
       if (!mounted) return;
 
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => destination),
-        (route) => false,
-      );
+      // The root MaterialApp (in main.dart) will automatically rebuild
+      // into the correct Home page because it watches the auth state.
+      // We just need to remove the LoginPage from the stack.
+      Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
 
@@ -155,8 +135,11 @@ class _LoginPageState extends State<LoginPage>
                   child: Column(
                     children: [
                       const SizedBox(height: 30),
-                      const Icon(Icons.child_care_rounded,
-                          size: 60, color: _primaryColor),
+                      const Icon(
+                        Icons.child_care_rounded,
+                        size: 60,
+                        color: _primaryColor,
+                      ),
                       const SizedBox(height: 20),
                       Text(
                         _isSignUp ? "Create Account" : "Welcome Back",
@@ -200,7 +183,7 @@ class _LoginPageState extends State<LoginPage>
             color: _borderColor.withValues(alpha: 0.3),
             blurRadius: 15,
             offset: const Offset(0, 5),
-          )
+          ),
         ],
       ),
       child: Form(
@@ -236,9 +219,7 @@ class _LoginPageState extends State<LoginPage>
               obscure: _obscurePassword,
               suffixIcon: IconButton(
                 icon: Icon(
-                  _obscurePassword
-                      ? Icons.visibility_off
-                      : Icons.visibility,
+                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
                 ),
                 onPressed: () =>
                     setState(() => _obscurePassword = !_obscurePassword),
@@ -255,7 +236,10 @@ class _LoginPageState extends State<LoginPage>
                 initialValue: _selectedRole,
                 items: const [
                   DropdownMenuItem(value: "Parent", child: Text("Parent")),
-                  DropdownMenuItem(value: "Caregiver", child: Text("Caregiver")),
+                  DropdownMenuItem(
+                    value: "Caregiver",
+                    child: Text("Caregiver"),
+                  ),
                 ],
                 onChanged: (v) => setState(() => _selectedRole = v!),
                 decoration: const InputDecoration(
@@ -315,9 +299,7 @@ class _LoginPageState extends State<LoginPage>
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          _isSignUp
-              ? "Already have an account? "
-              : "Don't have an account? ",
+          _isSignUp ? "Already have an account? " : "Don't have an account? ",
           style: const TextStyle(color: _textSecondary),
         ),
         GestureDetector(

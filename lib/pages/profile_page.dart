@@ -1,14 +1,16 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+// ignore_for_file: unnecessary_import
+
 import 'package:flutter/material.dart';
+// ignore: unused_import
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
-// import 'package:firebase_storage/firebase_storage.dart';
-import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../auth_state.dart';
 import 'welcome.dart';
 import 'login_page.dart';
-import '../utils/web_picker_stub.dart' if (dart.library.html) '../utils/web_picker.dart' as web_picker;
+import 'caregiver/caregiver_profile_edit.dart';
 
 // ─── Childcare Color Palette ──────────────────────────────────────────────
 const Color _primaryColor = Color(0xFFFF7E67);
@@ -79,55 +81,60 @@ class _ProfilePageState extends State<ProfilePage>
           .doc(auth.userId)
           .get();
       final data = doc.data();
-      if (data != null && data['photoUrl'] != null && mounted) {
-        setState(() => _profileImageUrl = data['photoUrl'] as String);
+      if (data != null && data['profileImageUrl'] != null && mounted) {
+        setState(() => _profileImageUrl = data['profileImageUrl'] as String);
       }
     } catch (_) {
       // Silently fail — will show initials
     }
   }
 
+<<<<<<< dino
+  /// Upload image to Cloudinary and save URL to Firestore
+  Future<void> _uploadProfileImage(XFile imageFile) async {
+    final auth = AuthState();
+    if (!auth.isLoggedIn) return;
+=======
   /// Upload image to Firebase Storage and save URL to Firestore
   Future<void> _uploadProfileImage(XFile imageFile) async {
   final auth = AuthState();
   if (!auth.isLoggedIn) return;
+>>>>>>> main
 
   setState(() => _isUploading = true);
 
-  try {
-    final bytes = await imageFile.readAsBytes();
+    try {
+      // Cloudinary configuration
+      const cloudName = 'dqgptyxo2';
+      const uploadPreset = 'tender_trust_upload';
 
-    var request = http.MultipartRequest(
-      'POST',
-      Uri.parse(
-        'https://api.cloudinary.com/v1_1/demtcemkk/image/upload',
-      ),
-    );
+      final url = Uri.parse(
+        'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
+      );
 
-    request.files.add(
-      http.MultipartFile.fromBytes(
-        'file',
-        bytes,
-        filename: imageFile.name,
-      ),
-    );
+      final bytes = await imageFile.readAsBytes();
+      final request = http.MultipartRequest('POST', url)
+        ..fields['upload_preset'] = uploadPreset
+        ..files.add(
+          http.MultipartFile.fromBytes('file', bytes, filename: imageFile.name),
+        );
 
-    request.fields['upload_preset'] = 'tendertrust_upload';
+      final response = await request.send();
+      if (response.statusCode != 200) {
+        throw Exception(
+          'Failed to upload to Cloudinary: ${response.statusCode}',
+        );
+      }
 
-    var response = await request.send();
+      final responseData = await response.stream.toBytes();
+      final responseString = utf8.decode(responseData);
+      final jsonResponse = json.decode(responseString);
+      final downloadUrl = jsonResponse['secure_url'];
 
-    if (response.statusCode == 200) {
-      var responseData = await response.stream.bytesToString();
-      var jsonData = json.decode(responseData);
-
-      String downloadUrl = jsonData['secure_url'];
-
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(auth.userId)
-          .set(
+      // Save photo URL in Firestore user document
+      await FirebaseFirestore.instance.collection('users').doc(auth.userId).set(
         {
-          'photoUrl': downloadUrl,
+          'profileImageUrl': downloadUrl,
           'updatedAt': FieldValue.serverTimestamp(),
         },
         SetOptions(merge: true),
@@ -163,18 +170,20 @@ class _ProfilePageState extends State<ProfilePage>
   }
 }
 
-Future<void> _removeProfileImage() async {
-  final auth = AuthState();
-  if (!auth.isLoggedIn) return;
+  /// Remove profile photo
+  Future<void> _removeProfileImage() async {
+    final auth = AuthState();
+    if (!auth.isLoggedIn) return;
 
-  setState(() => _isUploading = true);
+    setState(() => _isUploading = true);
 
-  try {
-    // Remove URL from Firestore only
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(auth.userId)
-        .update({'photoUrl': FieldValue.delete()});
+    try {
+      // For Cloudinary, we just remove the URL from Firestore.
+      // Full deletion would require a server-side signature.
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(auth.userId)
+          .update({'profileImageUrl': FieldValue.delete()});
 
     if (mounted) {
       setState(() {
@@ -776,6 +785,7 @@ Future<void> _removeProfileImage() async {
   }
 
   Widget _buildQuickActions() {
+    final auth = AuthState();
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -801,7 +811,18 @@ Future<void> _removeProfileImage() async {
             ),
           ),
           const SizedBox(height: 14),
-          _actionRow(Icons.edit_rounded, 'Edit Profile', _accentBlue),
+          _actionRow(
+            Icons.edit_rounded,
+            'Edit Profile',
+            _accentBlue,
+            onTap: auth.userRole == 'Caregiver'
+                ? () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const CaregiverProfileEditPage(),
+                    ),
+                  )
+                : null,
+          ),
           _actionRow(
             Icons.notifications_outlined,
             'Notifications',
@@ -822,11 +843,16 @@ Future<void> _removeProfileImage() async {
     );
   }
 
-  Widget _actionRow(IconData icon, String label, Color color) {
+  Widget _actionRow(
+    IconData icon,
+    String label,
+    Color color, {
+    VoidCallback? onTap,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: InkWell(
-        onTap: () {},
+        onTap: onTap ?? () {},
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),

@@ -174,28 +174,63 @@ class _ParentHomeState extends State<ParentHome> {
                         ),
                       ),
                       if (AuthState().isLoggedIn)
-                        GestureDetector(
-                          onTap: () => setState(() => _currentIndex = 2),
-                          child: Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [_primaryColor, Color(0xFFFF9A85)],
-                              ),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Center(
-                              child: Text(
-                                AuthState().initials,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w900,
+                        ListenableBuilder(
+                          listenable: AuthState(),
+                          builder: (context, _) {
+                            final auth = AuthState();
+                            return GestureDetector(
+                              onTap: () => setState(() => _currentIndex = 2),
+                              child: Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [_primaryColor, Color(0xFFFF9A85)],
+                                  ),
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: _primaryColor.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
                                 ),
+                                child: auth.profileImageUrl != null
+                                    ? ClipOval(
+                                        child: Image.network(
+                                          auth.profileImageUrl!,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  Center(
+                                                    child: Text(
+                                                      auth.initials,
+                                                      style: const TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 16,
+                                                        fontWeight:
+                                                            FontWeight.w900,
+                                                      ),
+                                                    ),
+                                                  ),
+                                        ),
+                                      )
+                                    : Center(
+                                        child: Text(
+                                          auth.initials,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
+                                      ),
                               ),
-                            ),
-                          ),
+                            );
+                          },
                         )
                       else
                         GestureDetector(

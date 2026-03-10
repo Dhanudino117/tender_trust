@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -16,26 +17,37 @@ class AuthState extends ChangeNotifier {
   AuthState._() {
     FirebaseAuth.instance.authStateChanges().listen((user) async {
       _firebaseUser = user;
+      _userDocSubscription?.cancel();
+
       if (user != null) {
-        // Fetch role from Firestore
-        try {
-          final doc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .get();
-          _userRole = doc.data()?['role'] as String? ?? 'Parent';
-        } catch (_) {
-          _userRole = 'Parent';
-        }
+        // Listen to Firestore for real-time profile updates (role, image, etc.)
+        _userDocSubscription = FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .snapshots()
+            .listen((doc) {
+              if (doc.exists) {
+                final data = doc.data()!;
+                _userRole = data['role'] as String? ?? 'Parent';
+                _profileImageUrl = data['profileImageUrl'] as String?;
+              } else {
+                _userRole = 'Parent';
+                _profileImageUrl = null;
+              }
+              notifyListeners();
+            });
       } else {
         _userRole = 'Parent';
+        _profileImageUrl = null;
+        notifyListeners();
       }
-      notifyListeners();
     });
   }
 
   User? _firebaseUser;
+  StreamSubscription? _userDocSubscription;
   String _userRole = 'Parent';
+  String? _profileImageUrl;
 
   bool get isLoggedIn => _firebaseUser != null;
 
@@ -47,6 +59,7 @@ class AuthState extends ChangeNotifier {
       _firebaseUser?.displayName ?? userEmail.split('@').first;
 
   String get userRole => _userRole;
+  String? get profileImageUrl => _profileImageUrl;
 
   String get initials {
     final name = userName.trim();
