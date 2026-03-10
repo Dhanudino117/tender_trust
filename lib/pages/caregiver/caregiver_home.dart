@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../features/auth/auth_providers.dart';
 import '../../data/mock_data.dart';
 import '../../models/booking_model.dart';
 import '../../widgets/booking_card.dart';
 import '../profile_page.dart';
-import '../../auth_state.dart';
+import '../messages_page.dart';
 import 'session_update.dart';
 
 const Color _primaryColor = Color(0xFFFF7E67);
@@ -15,14 +17,14 @@ const Color _textPrimary = Color(0xFF2D3047);
 const Color _textSecondary = Color(0xFF6B7280);
 const Color _borderColor = Color(0xFFE8D5C4);
 
-class CaregiverHome extends StatefulWidget {
+class CaregiverHome extends ConsumerStatefulWidget {
   const CaregiverHome({super.key});
 
   @override
-  State<CaregiverHome> createState() => _CaregiverHomeState();
+  ConsumerState<CaregiverHome> createState() => _CaregiverHomeState();
 }
 
-class _CaregiverHomeState extends State<CaregiverHome> {
+class _CaregiverHomeState extends ConsumerState<CaregiverHome> {
   int _currentIndex = 0;
   // Local status overrides for mock mode (in production, Firestore handles this)
   final Map<String, BookingStatus> _statusOverrides = {};
@@ -36,7 +38,12 @@ class _CaregiverHomeState extends State<CaregiverHome> {
       backgroundColor: _bgColor,
       body: IndexedStack(
         index: _currentIndex,
-        children: [_buildRequestsTab(), _buildActiveTab(), const ProfilePage()],
+        children: [
+          _buildRequestsTab(),
+          _buildActiveTab(),
+          const MessagesPage(),
+          const ProfilePage(),
+        ],
       ),
       bottomNavigationBar: _buildBottomNav(),
     );
@@ -62,7 +69,8 @@ class _CaregiverHomeState extends State<CaregiverHome> {
             children: [
               _navItem(0, Icons.inbox_rounded, 'Requests'),
               _navItem(1, Icons.play_circle_rounded, 'Active'),
-              _navItem(2, Icons.person_rounded, 'Profile'),
+              _navItem(2, Icons.message_rounded, 'Messages'),
+              _navItem(3, Icons.person_rounded, 'Profile'),
             ],
           ),
         ),
@@ -111,6 +119,8 @@ class _CaregiverHomeState extends State<CaregiverHome> {
         .where((b) => _getStatus(b) == BookingStatus.pending)
         .toList();
 
+    final user = ref.watch(currentUserProvider);
+
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -124,7 +134,7 @@ class _CaregiverHomeState extends State<CaregiverHome> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Hello${AuthState().isLoggedIn ? ', ${AuthState().userName.split(' ').first}' : ''} 👋',
+                        'Hello${user != null ? ', ${user.name.split(' ').first}' : ''} 👋',
                         style: const TextStyle(
                           color: _textPrimary,
                           fontSize: 24,
@@ -139,60 +149,54 @@ class _CaregiverHomeState extends State<CaregiverHome> {
                     ],
                   ),
                 ),
-                if (AuthState().isLoggedIn)
-                  ListenableBuilder(
-                    listenable: AuthState(),
-                    builder: (context, _) {
-                      final auth = AuthState();
-                      return GestureDetector(
-                        onTap: () => setState(() => _currentIndex = 2),
-                        child: Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [_primaryColor, Color(0xFFFF9A85)],
-                            ),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: _primaryColor.withValues(alpha: 0.2),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: auth.profileImageUrl != null
-                              ? ClipOval(
-                                  child: Image.network(
-                                    auth.profileImageUrl!,
-                                    fit: BoxFit.cover,
-                                    errorBuilder:
-                                        (context, error, stackTrace) => Center(
-                                          child: Text(
-                                            auth.initials,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w900,
-                                            ),
-                                          ),
-                                        ),
-                                  ),
-                                )
-                              : Center(
-                                  child: Text(
-                                    auth.initials,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-                                ),
+                if (user != null)
+                  GestureDetector(
+                    onTap: () => setState(() => _currentIndex = 3),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [_primaryColor, Color(0xFFFF9A85)],
                         ),
-                      );
-                    },
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: _primaryColor.withValues(alpha: 0.2),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: user.profileImageUrl != null
+                          ? ClipOval(
+                              child: Image.network(
+                                user.profileImageUrl!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Center(
+                                      child: Text(
+                                        user.initials,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ),
+                              ),
+                            )
+                          : Center(
+                              child: Text(
+                                user.initials,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                    ),
                   ),
               ],
             ),

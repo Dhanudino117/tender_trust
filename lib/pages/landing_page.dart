@@ -1,20 +1,20 @@
-// ignore_for_file: unused_field
-
 import 'package:flutter/material.dart';
-import '../auth_state.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../features/auth/auth_providers.dart';
 import 'login_page.dart';
 import 'profile_page.dart';
 import 'parent/parent_home.dart';
 import 'caregiver/caregiver_home.dart';
 
-class TenderTrustLandingPage extends StatefulWidget {
+class TenderTrustLandingPage extends ConsumerStatefulWidget {
   const TenderTrustLandingPage({super.key});
 
   @override
-  State<TenderTrustLandingPage> createState() => _TenderTrustLandingPageState();
+  ConsumerState<TenderTrustLandingPage> createState() =>
+      _TenderTrustLandingPageState();
 }
 
-class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
+class _TenderTrustLandingPageState extends ConsumerState<TenderTrustLandingPage>
     with SingleTickerProviderStateMixin {
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -84,9 +84,9 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
   }
 
   void _navigateToHome() {
-    if (AuthState().isLoggedIn) {
-      final userRole = AuthState().userRole;
-      final destination = userRole == 'Caregiver'
+    final user = ref.read(currentUserProvider);
+    if (user != null) {
+      final destination = user.role == 'Caregiver'
           ? const CaregiverHome()
           : const ParentHome();
       Navigator.of(context).pushAndRemoveUntil(
@@ -166,11 +166,10 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 12),
-          child: ListenableBuilder(
-            listenable: AuthState(),
-            builder: (context, _) {
-              final auth = AuthState();
-              if (!auth.isLoggedIn) {
+          child: Consumer(
+            builder: (context, ref, _) {
+              final user = ref.watch(currentUserProvider);
+              if (user == null) {
                 return Container(
                   decoration: _brutalistBox(
                     color: primaryColor,
@@ -217,15 +216,15 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
                     shape: BoxShape.circle,
                     border: Border.all(color: borderColor, width: 2),
                   ),
-                  child: auth.profileImageUrl != null
+                  child: user.profileImageUrl != null
                       ? ClipOval(
                           child: Image.network(
-                            auth.profileImageUrl!,
+                            user.profileImageUrl!,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) =>
                                 Center(
                                   child: Text(
-                                    auth.initials,
+                                    user.initials,
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 14,
@@ -237,7 +236,7 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
                         )
                       : Center(
                           child: Text(
-                            auth.initials,
+                            user.initials,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 14,
@@ -1580,7 +1579,8 @@ class _TenderTrustLandingPageState extends State<TenderTrustLandingPage>
                       _navigateToHome();
                       break;
                     case 3: // Profile
-                      if (AuthState().isLoggedIn) {
+                      final user = ref.read(currentUserProvider);
+                      if (user != null) {
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => const ProfilePage(),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../auth_state.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../features/auth/auth_providers.dart';
 import '../../data/mock_data.dart';
 
 const Color _primaryColor = Color(0xFFFF7E67);
@@ -11,19 +12,19 @@ const Color _textPrimary = Color(0xFF2D3047);
 const Color _textSecondary = Color(0xFF6B7280);
 const Color _borderColor = Color(0xFFE8D5C4);
 
-class CaregiverProfileEditPage extends StatefulWidget {
+class CaregiverProfileEditPage extends ConsumerStatefulWidget {
   const CaregiverProfileEditPage({super.key});
 
   @override
-  State<CaregiverProfileEditPage> createState() =>
+  ConsumerState<CaregiverProfileEditPage> createState() =>
       _CaregiverProfileEditPageState();
 }
 
-class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
+class _CaregiverProfileEditPageState
+    extends ConsumerState<CaregiverProfileEditPage> {
   final _bioController = TextEditingController();
   final _locationController = TextEditingController();
   final _rateController = TextEditingController();
-  final _experienceController = TextEditingController();
 
   @override
   void initState() {
@@ -33,7 +34,6 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
     _bioController.text = cg.bio;
     _locationController.text = cg.location;
     _rateController.text = cg.hourlyRate.toInt().toString();
-    _experienceController.text = cg.experienceYears.toString();
   }
 
   @override
@@ -41,12 +41,13 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
     _bioController.dispose();
     _locationController.dispose();
     _rateController.dispose();
-    _experienceController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(currentUserProvider);
+
     return Scaffold(
       backgroundColor: _bgColor,
       appBar: AppBar(
@@ -79,15 +80,15 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
                   Container(
                     width: 90,
                     height: 90,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
                         colors: [_primaryColor, Color(0xFFFF9A85)],
                       ),
                       shape: BoxShape.circle,
                     ),
                     child: Center(
                       child: Text(
-                        AuthState().initials,
+                        user?.initials ?? '?',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 32,
@@ -139,15 +140,6 @@ class _CaregiverProfileEditPageState extends State<CaregiverProfileEditPage> {
                     'Rate (₹/hr)',
                     _rateController,
                     icon: Icons.currency_rupee_rounded,
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildField(
-                    'Experience (yrs)',
-                    _experienceController,
-                    icon: Icons.work_rounded,
                     keyboardType: TextInputType.number,
                   ),
                 ),

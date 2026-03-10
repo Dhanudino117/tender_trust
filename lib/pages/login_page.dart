@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../auth_state.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../features/auth/auth_providers.dart';
 import 'parent/parent_home.dart';
 
 const Color _primaryColor = Color(0xFFFF7E67);
@@ -9,14 +10,14 @@ const Color _textPrimary = Color(0xFF2D3047);
 const Color _textSecondary = Color(0xFF6B7280);
 const Color _borderColor = Color(0xFFE8D5C4);
 
-class LoginPage extends StatefulWidget {
+class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  ConsumerState<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage>
+class _LoginPageState extends ConsumerState<LoginPage>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
@@ -70,24 +71,24 @@ class _LoginPageState extends State<LoginPage>
 
     try {
       if (_isSignUp) {
-        await AuthState().signUp(
-          name: _nameController.text.trim(),
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-          role: _selectedRole,
-        );
+        await ref
+            .read(authRepositoryProvider)
+            .signUp(
+              name: _nameController.text.trim(),
+              email: _emailController.text.trim(),
+              password: _passwordController.text.trim(),
+              role: _selectedRole,
+            );
       } else {
-        await AuthState().login(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-        );
+        await ref
+            .read(authRepositoryProvider)
+            .signInWithEmail(
+              _emailController.text.trim(),
+              _passwordController.text.trim(),
+            );
       }
 
       if (!mounted) return;
-
-      // The root MaterialApp (in main.dart) will automatically rebuild
-      // into the correct Home page because it watches the auth state.
-      // We just need to remove the LoginPage from the stack.
       Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
@@ -105,6 +106,28 @@ class _LoginPageState extends State<LoginPage>
 
     if (mounted) {
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isLoading = true);
+    try {
+      await ref.read(authRepositoryProvider).signInWithGoogle();
+      if (!mounted) return;
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.red,
+          content: Text(
+            e.toString(),
+            style: const TextStyle(color: Colors.white),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -148,6 +171,49 @@ class _LoginPageState extends State<LoginPage>
                       ),
                       const SizedBox(height: 25),
                       _buildFormCard(),
+                      const SizedBox(height: 16),
+                      const Row(
+                        children: [
+                          Expanded(child: Divider()),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 16),
+                            child: Text(
+                              "OR",
+                              style: TextStyle(
+                                color: _textSecondary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          Expanded(child: Divider()),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: OutlinedButton.icon(
+                          onPressed: _isLoading ? null : _handleGoogleSignIn,
+                          icon: Image.network(
+                            'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png',
+                            height: 20,
+                          ),
+                          label: const Text(
+                            "Continue with Google",
+                            style: TextStyle(
+                              color: _textPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: _borderColor),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 20),
                       _buildToggle(),
                       const SizedBox(height: 15),
@@ -264,7 +330,14 @@ class _LoginPageState extends State<LoginPage>
                   ),
                 ),
                 child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
                     : Text(_isSignUp ? "Create Account" : "Log In"),
               ),
             ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../features/auth/auth_providers.dart';
 import 'login_page.dart';
-import '../auth_state.dart';
 import 'parent/parent_home.dart';
 import 'caregiver/caregiver_home.dart';
 
@@ -14,14 +15,14 @@ const Color textPrimary = Color(0xFF2D3047);
 const Color textSecondary = Color(0xFF6B7280);
 const Color borderColor = Color(0xFFE8D5C4);
 
-class WelcomePage extends StatefulWidget {
+class WelcomePage extends ConsumerStatefulWidget {
   const WelcomePage({super.key});
 
   @override
-  State<WelcomePage> createState() => _WelcomePageState();
+  ConsumerState<WelcomePage> createState() => _WelcomePageState();
 }
 
-class _WelcomePageState extends State<WelcomePage>
+class _WelcomePageState extends ConsumerState<WelcomePage>
     with TickerProviderStateMixin {
   late AnimationController _mainController;
   late AnimationController _pulseController;
@@ -226,9 +227,9 @@ class _WelcomePageState extends State<WelcomePage>
             foregroundColor: cardColor,
           ),
           onPressed: () {
-            if (AuthState().isLoggedIn) {
-              final userRole = AuthState().userRole;
-              final destination = userRole == 'Caregiver'
+            final user = ref.read(currentUserProvider);
+            if (user != null) {
+              final destination = user.role == 'Caregiver'
                   ? const CaregiverHome()
                   : const ParentHome();
               Navigator.of(context).pushAndRemoveUntil(
@@ -247,9 +248,9 @@ class _WelcomePageState extends State<WelcomePage>
         const SizedBox(height: 12),
         OutlinedButton(
           onPressed: () {
-            if (AuthState().isLoggedIn) {
-              final userRole = AuthState().userRole;
-              final destination = userRole == 'Caregiver'
+            final user = ref.read(currentUserProvider);
+            if (user != null) {
+              final destination = user.role == 'Caregiver'
                   ? const CaregiverHome()
                   : const ParentHome();
               Navigator.of(context).pushAndRemoveUntil(
