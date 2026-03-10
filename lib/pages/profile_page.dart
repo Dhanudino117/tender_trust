@@ -89,12 +89,19 @@ class _ProfilePageState extends State<ProfilePage>
     }
   }
 
+<<<<<<< dino
   /// Upload image to Cloudinary and save URL to Firestore
   Future<void> _uploadProfileImage(XFile imageFile) async {
     final auth = AuthState();
     if (!auth.isLoggedIn) return;
+=======
+  /// Upload image to Firebase Storage and save URL to Firestore
+  Future<void> _uploadProfileImage(XFile imageFile) async {
+  final auth = AuthState();
+  if (!auth.isLoggedIn) return;
+>>>>>>> main
 
-    setState(() => _isUploading = true);
+  setState(() => _isUploading = true);
 
     try {
       // Cloudinary configuration
@@ -138,6 +145,7 @@ class _ProfilePageState extends State<ProfilePage>
           _profileImageUrl = downloadUrl;
           _isUploading = false;
         });
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Profile photo updated!'),
@@ -145,18 +153,22 @@ class _ProfilePageState extends State<ProfilePage>
           ),
         );
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isUploading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to upload photo: $e'),
-            backgroundColor: const Color(0xFFE53935),
-          ),
-        );
-      }
+    } else {
+      throw Exception('Upload failed');
+    }
+  } catch (e) {
+    if (mounted) {
+      setState(() => _isUploading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to upload photo: $e'),
+          backgroundColor: const Color(0xFFE53935),
+        ),
+      );
     }
   }
+}
 
   /// Remove profile photo
   Future<void> _removeProfileImage() async {
@@ -173,18 +185,18 @@ class _ProfilePageState extends State<ProfilePage>
           .doc(auth.userId)
           .update({'profileImageUrl': FieldValue.delete()});
 
-      if (mounted) {
-        setState(() {
-          _profileImageUrl = null;
-          _isUploading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isUploading = false);
-      }
+    if (mounted) {
+      setState(() {
+        _profileImageUrl = null;
+        _isUploading = false;
+      });
+    }
+  } catch (e) {
+    if (mounted) {
+      setState(() => _isUploading = false);
     }
   }
+}
 
   void _handleLogout() {
     AuthState().logout();
@@ -308,17 +320,24 @@ class _ProfilePageState extends State<ProfilePage>
       return;
     }
 
-    final source = result == 'camera'
-        ? ImageSource.camera
-        : ImageSource.gallery;
-
     try {
-      final XFile? picked = await _picker.pickImage(
-        source: source,
-        maxWidth: 512,
-        maxHeight: 512,
-        imageQuality: 85,
-      );
+      XFile? picked;
+
+      if (kIsWeb && result == 'camera') {
+        // On web, try the HTML capture input which provides a camera prompt
+        picked = await web_picker.pickImageFromWebCamera();
+      }
+
+      if (picked == null) {
+        final source = result == 'camera' ? ImageSource.camera : ImageSource.gallery;
+        picked = await _picker.pickImage(
+          source: source,
+          maxWidth: 512,
+          maxHeight: 512,
+          imageQuality: 85,
+        );
+      }
+
       if (picked != null) {
         await _uploadProfileImage(picked);
       }
